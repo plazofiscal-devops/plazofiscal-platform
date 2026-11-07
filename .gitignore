@@ -1,0 +1,15 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+*_override.tf
+*.auto.tfvars
+kubeconfig
+.env
+.env.*
+!.env.example
+node_modules/
+target/
+__pycache__/
+.DS_Store

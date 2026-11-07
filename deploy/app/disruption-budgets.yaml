@@ -1,0 +1,32 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend
+  namespace: plazofiscal
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: frontend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: auth-api
+  namespace: plazofiscal
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: auth-api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: todos-api
+  namespace: plazofiscal
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: todos-api

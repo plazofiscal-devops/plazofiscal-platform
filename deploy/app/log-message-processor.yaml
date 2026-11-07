@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: log-data
+  namespace: plazofiscal
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-message-processor
+  namespace: plazofiscal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-message-processor
+  template:
+    metadata:
+      labels:
+        app: log-message-processor
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: log-message-processor
+          image: ghcr.io/plazofiscal-devops/log-message-processor
+          env:
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: REDIS_HOST }
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: REDIS_PORT }
+            - name: REDIS_CHANNEL
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: REDIS_CHANNEL }
+            - name: ZIPKIN_URL
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: ZIPKIN_URL_V1 }
+            - name: LOG_PERSIST_PATH
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: LOG_PERSIST_PATH }
+            - name: SENDGRID_API_KEY
+              valueFrom:
+                secretKeyRef: { name: app-secrets, key: SENDGRID_API_KEY, optional: true }
+            - name: SENDGRID_TO
+              valueFrom:
+                secretKeyRef: { name: app-secrets, key: SENDGRID_TO, optional: true }
+          volumeMounts:
+            - name: log-data
+              mountPath: /data
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 200m, memory: 256Mi }
+      volumes:
+        - name: log-data
+          persistentVolumeClaim:
+            claimName: log-data

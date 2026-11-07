@@ -1,0 +1,37 @@
+name: Build images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - ".github/workflows/images.yml"
+
+permissions: {}
+
+jobs:
+  build:
+    name: Build ${{ matrix.service }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [frontend, auth-api, users-api, todos-api, log-message-processor]
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build and publish
+        env:
+          SERVICE: ${{ matrix.service }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          image="ghcr.io/plazofiscal-devops/$SERVICE"
+          echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker build --tag "$image:main" --tag "$image:sha-${GITHUB_SHA::7}" "app/$SERVICE"
+          docker push --all-tags "$image"

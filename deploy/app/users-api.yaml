@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: users-api
+  namespace: plazofiscal
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: users-api
+  template:
+    metadata:
+      labels:
+        app: users-api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+      containers:
+        - name: users-api
+          image: ghcr.io/plazofiscal-devops/users-api
+          ports:
+            - containerPort: 8083
+          env:
+            - name: SERVER_PORT
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: SERVER_PORT }
+            - name: SPRING_ZIPKIN_BASE_URL
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: SPRING_ZIPKIN_BASE_URL }
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: app-secrets, key: JWT_SECRET }
+          startupProbe:
+            httpGet: { path: /health, port: 8083 }
+            periodSeconds: 5
+            failureThreshold: 24 # hasta 120s para el primer arranque
+          readinessProbe:
+            httpGet: { path: /health, port: 8083 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8083 }
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 250m, memory: 768Mi }
+            limits: { cpu: 1000m, memory: 1280Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: users-api
+  namespace: plazofiscal
+spec:
+  selector:
+    app: users-api
+  ports:
+    - port: 8083
+      targetPort: 8083

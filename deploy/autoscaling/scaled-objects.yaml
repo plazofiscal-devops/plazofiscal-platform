@@ -1,0 +1,89 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: frontend
+  namespace: plazofiscal
+spec:
+  scaleTargetRef:
+    name: frontend
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  triggers:
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: "65"
+    # Filing window of each month, when firms close withholding and VAT returns.
+    - type: cron
+      metadata:
+        timezone: America/Bogota
+        start: "0 7 8 * *"
+        end: "0 20 24 * *"
+        desiredReplicas: "2"
+    # Income tax season for individuals, August to October.
+    - type: cron
+      metadata:
+        timezone: America/Bogota
+        start: "0 7 1 8 *"
+        end: "0 20 31 10 *"
+        desiredReplicas: "3"
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: auth-api
+  namespace: plazofiscal
+spec:
+  scaleTargetRef:
+    name: auth-api
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  triggers:
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: "65"
+    # Filing window of each month, when firms close withholding and VAT returns.
+    - type: cron
+      metadata:
+        timezone: America/Bogota
+        start: "0 7 8 * *"
+        end: "0 20 24 * *"
+        desiredReplicas: "2"
+    # Income tax season for individuals, August to October.
+    - type: cron
+      metadata:
+        timezone: America/Bogota
+        start: "0 7 1 8 *"
+        end: "0 20 31 10 *"
+        desiredReplicas: "3"
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: todos-api
+  namespace: plazofiscal
+spec:
+  scaleTargetRef:
+    name: todos-api
+  minReplicaCount: 1
+  maxReplicaCount: 4
+  triggers:
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: "65"
+    # Filing window of each month, when firms close withholding and VAT returns.
+    - type: cron
+      metadata:
+        timezone: America/Bogota
+        start: "0 7 8 * *"
+        end: "0 20 24 * *"
+        desiredReplicas: "2"
+    # Income tax season for individuals, August to October.
+    - type: cron
+      metadata:
+        timezone: America/Bogota
+        start: "0 7 1 8 *"
+        end: "0 20 31 10 *"
+        desiredReplicas: "4"

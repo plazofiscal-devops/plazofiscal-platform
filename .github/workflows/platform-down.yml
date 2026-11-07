@@ -1,0 +1,73 @@
+name: Platform down
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 23:00 in Bogota, so a forgotten cluster never runs overnight.
+    - cron: "0 4 * * *"
+
+permissions: {}
+
+concurrency:
+  group: azure-platform
+  cancel-in-progress: false
+
+env:
+  ARM_USE_OIDC: "true"
+  ARM_USE_AZUREAD: "true"
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_STATE_ACCOUNT: ${{ vars.TF_STATE_ACCOUNT }}
+  RESOURCE_GROUP: fiscal-plazo-demo-rg-main
+  CLUSTER: fiscal-plazo-demo-aks-main
+
+jobs:
+  down:
+    name: Destroy the cluster
+    runs-on: ubuntu-24.04
+    environment: azure-down
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read the Terraform version
+        id: version
+        run: echo "terraform=$(cat infra/terraform/.terraform-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ steps.version.outputs.terraform }}
+          terraform_wrapper: false
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Initialize Terraform
+        working-directory: infra/terraform
+        run: |
+          terraform init -input=false \
+            -backend-config="resource_group_name=$RESOURCE_GROUP" \
+            -backend-config="storage_account_name=$TF_STATE_ACCOUNT" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=demo.tfstate" \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Destroy the infrastructure
+        working-directory: infra/terraform
+        run: terraform destroy -auto-approve -input=false
+
+      - name: Confirm that no cluster remains
+        run: test "$(az aks list --query 'length(@)' --output tsv)" = "0"

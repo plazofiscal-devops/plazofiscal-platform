@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todos-api
+  namespace: plazofiscal
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: todos-api
+  template:
+    metadata:
+      labels:
+        app: todos-api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: todos-api
+          image: ghcr.io/plazofiscal-devops/todos-api
+          ports:
+            - containerPort: 8082
+          env:
+            - name: TODO_API_PORT
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: TODO_API_PORT }
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: REDIS_HOST }
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: REDIS_PORT }
+            - name: REDIS_CHANNEL
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: REDIS_CHANNEL }
+            - name: ZIPKIN_URL
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: ZIPKIN_URL_V2 }
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: app-secrets, key: JWT_SECRET }
+          readinessProbe:
+            httpGet: { path: /health, port: 8082 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8082 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 200m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: todos-api
+  namespace: plazofiscal
+spec:
+  selector:
+    app: todos-api
+  ports:
+    - port: 8082
+      targetPort: 8082
