@@ -53,7 +53,7 @@ Memory limits the design more than any other factor. The reference machine has 8
 | Keycloak and oauth2-proxy | 0.8 GiB |
 | Traefik and KEDA | 0.3 GiB |
 | Application at maximum replicas | 1.8 GiB |
-| **Total** | **9.2 GiB** |
+| **Total** | **8.9 GiB** |
 
 The cluster runs one node. The default storage of minikube does not handle several nodes well, and one node leaves more memory for the workload. A production service would run several nodes across zones.
 
@@ -126,9 +126,9 @@ Keycloak requires a password and a one-time code. Grafana connects to it directl
 | Item | Who confirms | Effect if it fails |
 |---|---|---|
 | The stack fits in 10 GiB | First full deployment | Reduce retention, then remove Logstash from the path and keep Elasticsearch and Kibana |
-| The free Kubecost tier works on a local cluster | Installation | Use OpenCost, its open source base |
+| Kubecost shows useful figures on a local cluster with default prices | Installation | Use OpenCost, its open source base |
 | Kibana can skip its login behind `oauth2-proxy` | Installation | Keep a second login, or read logs in Grafana |
 
 ## Prices in Kubecost
 
-A local cluster has no bill, so Kubecost uses reference prices of a comparable cloud node. Its figures show how cost would divide across services, and they do not describe a real invoice.
+A local cluster has no bill, so Kubecost estimates from its default reference prices. Its figures show how cost would divide across services, and they describe no real invoice. The free tier covers up to 250 cores and keeps 15 days of metrics, which fits this cluster. Custom prices belong to its paid tier.
