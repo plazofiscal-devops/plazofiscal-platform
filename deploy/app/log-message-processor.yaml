@@ -29,7 +29,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: log-message-processor
-          image: ghcr.io/plazofiscal-devops/log-message-processor
+          image: plazofiscal/log-message-processor
           env:
             - name: REDIS_HOST
               valueFrom:

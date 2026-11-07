@@ -23,7 +23,7 @@ spec:
         runAsUser: 100
       containers:
         - name: auth-api
-          image: ghcr.io/plazofiscal-devops/auth-api
+          image: plazofiscal/auth-api
           ports:
             - containerPort: 8081
           env:

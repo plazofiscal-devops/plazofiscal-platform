@@ -23,7 +23,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: frontend
-          image: ghcr.io/plazofiscal-devops/frontend
+          image: plazofiscal/frontend
           ports:
             - containerPort: 8080
           env:

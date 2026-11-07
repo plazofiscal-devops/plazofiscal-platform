@@ -67,7 +67,7 @@ spec:
   scaleTargetRef:
     name: todos-api
   minReplicaCount: 1
-  maxReplicaCount: 4
+  maxReplicaCount: 3
   triggers:
     - type: cpu
       metricType: Utilization
@@ -86,4 +86,4 @@ spec:
         timezone: America/Bogota
         start: "0 7 1 8 *"
         end: "0 20 31 10 *"
-        desiredReplicas: "4"
+        desiredReplicas: "3"

@@ -11,13 +11,13 @@ resources:
   - log-message-processor.yaml
   - disruption-budgets.yaml
 images:
-  - name: ghcr.io/plazofiscal-devops/auth-api
-    newTag: main
-  - name: ghcr.io/plazofiscal-devops/users-api
-    newTag: main
-  - name: ghcr.io/plazofiscal-devops/todos-api
-    newTag: main
-  - name: ghcr.io/plazofiscal-devops/frontend
-    newTag: main
-  - name: ghcr.io/plazofiscal-devops/log-message-processor
-    newTag: main
+  - name: plazofiscal/auth-api
+    newTag: local
+  - name: plazofiscal/users-api
+    newTag: local
+  - name: plazofiscal/todos-api
+    newTag: local
+  - name: plazofiscal/frontend
+    newTag: local
+  - name: plazofiscal/log-message-processor
+    newTag: local

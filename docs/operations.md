@@ -1,74 +1,61 @@
 # Operations
 
-This document explains how to prepare the platform, how to bring it up and down, who can do it, and what it costs.
+This document explains what the platform needs, how to run it day to day, and what to do when something fails.
 
 ## Contents
 
-1. Access model
-2. First setup
-3. Daily use
-4. Cost
+1. Requirements
+2. Daily commands
+3. Releasing a service
+4. Secrets
 5. Troubleshooting
 
-## 1. Access model
+## 1. Requirements
 
-No person or file holds a credential for Azure. The pipeline signs in through OIDC, as a managed identity that trusts only two GitHub environments of this repository.
-
-| Control | Effect |
+| Requirement | Detail |
 |---|---|
-| Federated identity | GitHub receives a short token for each run, and no secret exists to steal |
-| Scope of the identity | One resource group and its state storage, with no access to the rest of the subscription |
-| `azure-up` environment | Only `main`, and a named reviewer must approve |
-| `azure-down` environment | Only `main`, with no approval, so that the nightly shutdown can run |
-| Repository permissions | Only members with write access can start a workflow, and changes to `main` need a reviewed pull request |
-| Cluster credentials | Exist on the runner during one run and disappear with it |
-| Application secrets | Generated at deployment, and they live only in the cluster |
+| Docker | Running, with access for the current user |
+| minikube | Recent stable version |
+| kubectl | Close to the cluster version |
+| Helm | Version 3 |
+| Memory | 12 GiB free on the machine, with browsers and other heavy programs closed |
+| CPU | 8 cores recommended |
 
-The Azure identifiers stay in environment secrets, so the logs of this public repository hide them.
+`make` reads `CPUS` and `MEMORY`, so a smaller machine can try `make up MEMORY=8192`. Below 10 GiB, keep only the tools a demonstration needs.
 
-## 2. First setup
+## 2. Daily commands
 
-The subscription owner runs this once.
+| Command | Effect |
+|---|---|
+| `make up` | Creates the cluster, builds the images and deploys |
+| `make status` | Shows nodes, pods and resource use |
+| `make stop` | Pauses the cluster and keeps its data |
+| `make down` | Deletes the cluster and its data |
+
+All commands use the `plazofiscal` profile and context, so they never touch another cluster of the same machine.
+
+## 3. Releasing a service
 
 ```bash
-az login
-gh auth login
-ALERT_EMAIL=name@example.com infra/bootstrap/bootstrap.sh
+make rollout SERVICE=todos-api TAG=v2
 ```
 
-The script creates the resource group, the state storage, the identity, the two GitHub environments and a budget with alerts. It is safe to review before running, and bringing the platform down leaves all of this in place.
+The command builds the image inside the cluster and starts a rolling update. To return to the previous version, run this.
 
-## 3. Daily use
+```bash
+kubectl --context plazofiscal --namespace plazofiscal rollout undo deployment/todos-api
+```
 
-| Task | Action |
-|---|---|
-| Start working | Run `Platform up`, and a reviewer approves it |
-| Release a service | Run `Deploy application` with the service and the image tag |
-| Stop working | Run `Platform down` |
-| Forget to stop | The nightly run at 23:00 in Bogota removes the cluster |
+## 4. Secrets
 
-## 4. Cost
-
-| Item | Rate, USD per hour |
-|---|---|
-| Three `Standard_B2as_v2` nodes in `mexicocentral` | 0.248 |
-| AKS control plane, free tier | 0 |
-| Disks, load balancer and public address, estimated | 0.05 |
-| **Total, estimated** | **0.30** |
-
-| Use | Cost, USD |
-|---|---|
-| A work session of 4 hours | 1.20 |
-| One whole day, forgotten | 7.20 |
-| Hours that USD 100 covers | About 330 |
-
-The resource group alone holds the identity and a small storage account, which cost almost nothing.
+The repository holds no secret. The deployment generates the signing key of the application once, and it lives only in the cluster.
 
 ## 5. Troubleshooting
 
 | Symptom | Cause | Response |
 |---|---|---|
-| `RequestDisallowedByAzure` | The region is outside the subscription policy | Use one of the five allowed regions |
-| A size is not available | Sizes are restricted per region and zone | Read the restrictions of the subscription and adjust the zones |
-| Quota exceeded | The subscription allows 6 vCPU per region | Keep nodes at 3 with 2 vCPU each |
-| A workflow waits with no progress | It needs the approval of a reviewer | Approve it in the Actions tab |
+| Pods in `Pending` | The cluster has no memory left | Run `make status`, then reduce replicas or stop a tool |
+| Pods in `OOMKilled` | A tool exceeded its limit | Raise its limit inside the budget of the architecture document |
+| The machine freezes | Too much memory assigned | Run `make stop`, close programs, and try again with a lower `MEMORY` |
+| Traffic between services is blocked | A network policy has no matching path | Read `deploy/policies/network-policies.yaml` and add the path |
+| A service keeps the old image | The tag did not change | Use a new `TAG` on each release |

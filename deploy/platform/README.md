@@ -1,6 +1,6 @@
 # Platform components
 
-Each component installs from a chart or operator pinned to an exact version, with its values in this folder. [Architecture](../../docs/architecture.md) gives the memory budget of each one.
+Each component installs from a chart or operator pinned to an exact version, with reduced memory settings in this folder. [Architecture](../../docs/architecture.md) gives the memory budget of each one.
 
 | Component | Namespace | Purpose |
 |---|---|---|

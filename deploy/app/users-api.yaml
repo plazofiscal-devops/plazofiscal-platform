@@ -23,7 +23,7 @@ spec:
         runAsUser: 100
       containers:
         - name: users-api
-          image: ghcr.io/plazofiscal-devops/users-api
+          image: plazofiscal/users-api
           ports:
             - containerPort: 8083
           env:

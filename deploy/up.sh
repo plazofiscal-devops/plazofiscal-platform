@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
-# Deploys the platform on the current cluster context. Secrets are generated here and live only in the cluster.
+# Deploys the platform on the local cluster. Secrets are generated here and live only in the cluster.
 set -euo pipefail
 
-kubectl apply --filename deploy/app/namespace.yaml
+context=${KUBE_CONTEXT:?set KUBE_CONTEXT to the minikube profile}
+kube() { kubectl --context "$context" "$@"; }
 
-if ! kubectl --namespace plazofiscal get secret app-secrets >/dev/null 2>&1; then
-  kubectl --namespace plazofiscal create secret generic app-secrets \
+kube apply --filename deploy/app/namespace.yaml
+
+if ! kube --namespace plazofiscal get secret app-secrets >/dev/null 2>&1; then
+  kube --namespace plazofiscal create secret generic app-secrets \
     --from-literal=JWT_SECRET="$(openssl rand -hex 32)"
 fi
 
-kubectl apply --kustomize deploy/policies
-kubectl apply --kustomize deploy/app
+kube apply --kustomize deploy/policies
+kube apply --kustomize deploy/app
 for deployment in auth-api users-api todos-api frontend; do
-  kubectl --namespace plazofiscal rollout status "deployment/$deployment" --timeout=10m
+  kube --namespace plazofiscal rollout status "deployment/$deployment" --timeout=10m
 done

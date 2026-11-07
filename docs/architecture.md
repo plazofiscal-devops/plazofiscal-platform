@@ -1,6 +1,6 @@
 # Architecture
 
-This document explains how PlazoFiscal runs on Azure, why the cluster has its size, and how the main decisions fit the capacity available. The business reasons live in the [business case](business-case.md).
+This document explains how PlazoFiscal runs on a local minikube cluster, why the cluster has its size, and how the main decisions fit the capacity available. The business reasons live in the [business case](business-case.md).
 
 ## Contents
 
@@ -20,7 +20,7 @@ This document explains how PlazoFiscal runs on Azure, why the cluster has its si
 
 | Term | Meaning |
 |---|---|
-| AKS | Azure Kubernetes Service |
+| minikube | A Kubernetes cluster that runs on one machine |
 | Rolling update | A release that replaces pods a few at a time |
 | PVC | A request for a persistent disk |
 | HPA | The Kubernetes object that changes replicas by load |
@@ -28,7 +28,7 @@ This document explains how PlazoFiscal runs on Azure, why the cluster has its si
 
 ## 2. Overview
 
-One AKS cluster holds the application and the operations tools. Traefik receives traffic, and sign-in protects each entry point. No environment split exists, because the platform is a demonstration that lives for hours at a time.
+One minikube cluster holds the application and the operations tools. It uses the Docker driver, one node and Cilium as network plugin. Traefik receives traffic, and sign-in protects each entry point. The platform has no cloud dependency, so any machine with enough memory can run it from a clean clone.
 
 | Namespace | Holds |
 |---|---|
@@ -40,33 +40,26 @@ One AKS cluster holds the application and the operations tools. Traefik receives
 
 ## 3. Capacity
 
-The subscription limits the design more than any other factor.
-
-| Limit | Value |
-|---|---|
-| Allowed regions | `mexicocentral`, `southcentralus`, `eastus2`, `westus3`, `brazilsouth` |
-| vCPU per region | 6, with no increases on this offer |
-| Sizes | Vary per region and per zone |
-
-The cluster uses three `Standard_B2as_v2` nodes in `mexicocentral`, the allowed region closest to Colombia. That gives 6 vCPU and 24 GiB. Zones 2 and 3 are set explicitly, because this size is unavailable in zone 1 of that region for this subscription.
-
-These nodes are burstable, with a baseline of 40 percent of CPU and credits to go above it. That suits a demonstration, and sustained load would throttle them. A production service would use general purpose nodes.
+Memory limits the design more than any other factor. The reference machine has 8 cores and 13.5 GiB, so the cluster receives 6 CPUs and 10 GiB and leaves the rest to the operating system. Each tool runs one replica with reduced memory.
 
 | Component | Estimated memory |
 |---|---|
-| Elasticsearch | 3 GiB |
-| Logstash and Kibana | 2 GiB |
-| Prometheus, Alertmanager, Grafana and exporters | 2.5 GiB |
-| Kubecost | 1 GiB |
-| Jaeger and event exporter | 0.5 GiB |
-| Keycloak and oauth2-proxy | 1.5 GiB |
-| Traefik and KEDA | 0.5 GiB |
-| Application at maximum replicas | 2.5 GiB |
-| **Total** | **13.5 GiB** |
+| Kubernetes, Cilium and metrics server | 1.3 GiB |
+| Elasticsearch | 1.5 GiB |
+| Logstash and Kibana | 1.3 GiB |
+| Prometheus, Alertmanager, Grafana and exporters | 1.1 GiB |
+| Kubecost | 0.6 GiB |
+| Jaeger and event exporter | 0.2 GiB |
+| Keycloak and oauth2-proxy | 0.8 GiB |
+| Traefik and KEDA | 0.3 GiB |
+| Application at maximum replicas | 1.8 GiB |
+| **Total** | **9.2 GiB** |
+
+The cluster runs one node. The default storage of minikube does not handle several nodes well, and one node leaves more memory for the workload. A production service would run several nodes across zones.
 
 ## 4. Rolling deployment
 
-Each service sets `maxSurge: 1` and `maxUnavailable: 0`. Kubernetes starts one new pod, waits for its readiness probe, and only then removes an old one, so capacity never falls during a release. A PodDisruptionBudget protects the same services when a node is drained. An undo returns to the previous version with the same mechanism.
+Each service sets `maxSurge: 1` and `maxUnavailable: 0`. Kubernetes starts one new pod, waits for its readiness probe, and only then removes an old one, so capacity never falls during a release. A PodDisruptionBudget declares the same limit for planned disruptions, which matters as soon as the platform has more than one node. An undo returns to the previous version with the same mechanism.
 
 The extra pod needs room in the cluster, so a release and a scaling event compete for the same capacity. Replica limits leave space for that.
 
@@ -74,11 +67,11 @@ Redis stays outside this strategy. It runs one replica with a persistent disk, s
 
 ## 5. Storage
 
-Redis persists its data with an append-only file on a managed disk, and the activity processor keeps its log on another. The disks live as long as the cluster, so bringing the platform down erases them. That fits a demonstration, and a production service would add backups.
+Redis persists its data with an append-only file on a persistent volume, and the activity processor keeps its log on another. minikube provides those volumes from a folder of the node. Data survives pod restarts and `make stop`, and `make down` erases it. A production service would use managed disks and backups.
 
 ## 6. Network isolation
 
-The `plazofiscal` namespace starts from default deny, for traffic in both directions. Each policy then opens one path, and Cilium enforces them. No service reaches another unless a policy names that path.
+The `plazofiscal` namespace starts from default deny, for traffic in both directions. Each policy then opens one path, and Cilium enforces them. The default network plugin of minikube would accept the policies without enforcing them, so the cluster starts with Cilium. No service reaches another unless a policy names that path.
 
 | From | To | Port |
 |---|---|---|
@@ -97,7 +90,7 @@ KEDA creates one HPA per service, combining CPU load at 65 percent with the cale
 |---|---|---|
 | Frontend | 1 | 3 |
 | Sign-in service | 1 | 3 |
-| Obligations service | 1 | 4 |
+| Obligations service | 1 | 3 |
 
 ## 8. Observability
 
@@ -121,9 +114,10 @@ Keycloak requires a password and a one-time code. Grafana connects to it directl
 
 | Decision | Alternative | Why this one |
 |---|---|---|
-| Three small nodes | One larger node | Zones and rolling updates need more than one node |
+| minikube on one node | A managed cloud cluster | It costs nothing and any member of the team can run it |
+| Cilium | The default network plugin | It enforces network policies |
 | Traefik | `ingress-nginx` | `ingress-nginx` is retired and receives no fixes |
-| Keycloak | An external identity provider | It works with no dependency on another tenant, at about 1 GiB more |
+| Keycloak | An external identity provider | It works with no outside dependency, at about 0.8 GiB |
 | Calendar rules through KEDA | A scheduled job that edits the HPA | One declarative object, with no extra permissions |
 | One public repository | Several repositories | One change can touch code, manifests and documents |
 
@@ -131,7 +125,10 @@ Keycloak requires a password and a one-time code. Grafana connects to it directl
 
 | Item | Who confirms | Effect if it fails |
 |---|---|---|
-| Azure has capacity for three nodes in those zones | First deployment | Move to `westus3`, zones 1 and 2 |
-| The stack fits in 24 GiB and the CPU baseline | First full deployment | Lower replicas or retention |
-| The free Kubecost tier covers this cluster | Installation | Use OpenCost, its open source base |
+| The stack fits in 10 GiB | First full deployment | Reduce retention, then remove Logstash from the path and keep Elasticsearch and Kibana |
+| The free Kubecost tier works on a local cluster | Installation | Use OpenCost, its open source base |
 | Kibana can skip its login behind `oauth2-proxy` | Installation | Keep a second login, or read logs in Grafana |
+
+## Prices in Kubecost
+
+A local cluster has no bill, so Kubecost uses reference prices of a comparable cloud node. Its figures show how cost would divide across services, and they do not describe a real invoice.

@@ -23,7 +23,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: todos-api
-          image: ghcr.io/plazofiscal-devops/todos-api
+          image: plazofiscal/todos-api
           ports:
             - containerPort: 8082
           env:

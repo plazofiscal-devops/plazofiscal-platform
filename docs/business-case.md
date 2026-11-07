@@ -89,7 +89,7 @@ The dashboard shows these indicators next to the technical signals, so that a ma
 | Load exceeds the cluster | Slow responses | Maximum replicas protect the rest of the platform, and an alert warns the operator |
 | Unauthorized access | Exposure of client data | Sign-in with a second factor, and network isolation between services |
 | Redis loses its pod | Short interruption | Data stays on the persistent volume, and the pod returns on its own |
-| Cost grows unnoticed | Budget exhausted | Kubecost, budget alerts and nightly shutdown |
+| Cost grows unnoticed | Margin erodes | Kubecost shows cost per service, and an alert warns about idle capacity |
 
 ## 10. Assumptions
 
