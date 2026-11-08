@@ -1,82 +1,44 @@
 <template>
-    <div>
-        <app-nav></app-nav>
-        <div class='container'>
-            <spinner v-show='loggingIn' message='Logging in...'></spinner>
-            <form class='form-horizontal' role='form' v-on:submit.prevent='doLogin'>
-                <div class='row'>
-                    <div class='col-md-3'></div>
-                    <div class='col-md-6'>
-                        <h2>Please Login</h2>
-                        <hr>
-                    </div>
-                </div>
-                <div class='row'>
-                    <div class='col-md-3'></div>
-                    <div class='col-md-6'>
-                        <div class='form-group has-danger'>
-                            <label class='sr-only' for='username'>Login</label>
-                            <div class='input-group mb-2 mr-sm-2 mb-sm-0'>
-                                <div class='input-group-addon' style='width: 2.6rem'><i class='fa fa-at'></i></div>
-                                <input
-                                  type='text'
-                                  name='username'
-                                  class='form-control'
-                                  placeholder='johnd'
-                                  v-model='credentials.username'
-                                  required
-                                  autofocus
-                                >
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class='row'>
-                    <div class='col-md-3'></div>
-                    <div class='col-md-6'>
-                        <div class='form-group'>
-                            <label class='sr-only' for='password'>Password</label>
-                            <div class='input-group mb-2 mr-sm-2 mb-sm-0'>
-                                <div class='input-group-addon' style='width: 2.6rem'><i class='fa fa-key'></i></div>
-                                <input
-                                  type='password'
-                                  name='password'
-                                  class='form-control'
-                                  placeholder='foo'
-                                  v-model='credentials.password'
-                                  required>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class='row' style='padding-top: 1rem'>
-                    <div class='col-md-3'></div>
-                    <div class='col-md-6'>
-                        <div class='form-control-feedback'>
-                            <span class='text-danger align-middle'>
-                            {{ errorMessage }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div class='row' style='padding-top: 1rem'>
-                    <div class='col-md-3'></div>
-                    <div class='col-md-6'>
-                        <button type='submit' class='btn btn-success'><i class='fa fa-sign-in'></i> Login</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
+  <div class="login-page">
+    <spinner v-show="loggingIn" message="Ingresando..."></spinner>
+    <form class="login-card" v-on:submit.prevent="doLogin">
+      <brand></brand>
+      <p class="login-intro">Las obligaciones tributarias de tus clientes, al día.</p>
+
+      <label class="login-label" for="username">Usuario</label>
+      <input
+        id="username"
+        type="text"
+        class="pf-input"
+        autocomplete="username"
+        v-model="credentials.username"
+        required
+        autofocus
+      >
+
+      <label class="login-label" for="password">Contraseña</label>
+      <input
+        id="password"
+        type="password"
+        class="pf-input"
+        autocomplete="current-password"
+        v-model="credentials.password"
+        required
+      >
+
+      <div class="pf-error login-error">{{ errorMessage }}</div>
+      <button type="submit" class="pf-button login-submit">Ingresar</button>
+    </form>
+  </div>
 </template>
 
 <script>
 import Spinner from '@/components/common/Spinner'
-import AppNav from '@/components/AppNav'
+import Brand from '@/components/common/Brand'
 
 export default {
   name: 'login',
-  components: { AppNav, Spinner },
+  components: { Brand, Spinner },
   methods: {
     doLogin: function () {
       this.loggingIn = true
@@ -89,7 +51,11 @@ export default {
 
       this.$auth.login(credentials, 'todos').then(response => {
         this.loggingIn = false
-        this.errorMessage = response.body.message
+        if (response.status === 401) {
+          this.errorMessage = 'Usuario o contraseña incorrectos.'
+        } else if (!response.ok) {
+          this.errorMessage = 'No fue posible iniciar sesión. Intenta de nuevo en un momento.'
+        }
       })
     }
   },
@@ -105,3 +71,42 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.login-page {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+.login-card {
+  background: var(--pf-panel);
+  border-radius: 14px;
+  max-width: 400px;
+  padding: 2.5rem 2rem;
+  width: 100%;
+}
+
+.login-intro {
+  color: var(--pf-muted);
+  margin: 0.8rem 0 1.8rem;
+}
+
+.login-label {
+  color: var(--pf-muted);
+  display: block;
+  font-size: 0.9rem;
+  margin: 0.9rem 0 0.4rem;
+}
+
+.login-error {
+  margin-top: 0.9rem;
+}
+
+.login-submit {
+  margin-top: 0.4rem;
+  width: 100%;
+}
+</style>
