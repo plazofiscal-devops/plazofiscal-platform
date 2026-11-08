@@ -38,3 +38,8 @@ helm upgrade --install elastic-operator eck-operator \
   --repo https://helm.elastic.co --version 3.5.0 \
   --kube-context "$context" --namespace elastic-system --create-namespace \
   --values deploy/platform/eck-operator/values.yaml --wait --timeout 10m
+
+"${kubectl[@]}" apply --kustomize deploy/platform/elastic
+"${kubectl[@]}" --namespace observability wait elasticsearch/logs --for=jsonpath='{.status.health}'=green --timeout=10m
+"${kubectl[@]}" --namespace observability wait kibana/logs --for=jsonpath='{.status.health}'=green --timeout=10m
+KUBE_CONTEXT=$context bash deploy/platform/elastic/setup.sh

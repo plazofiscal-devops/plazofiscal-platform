@@ -1,0 +1,11 @@
+# Local access only, through make dashboards. Sign-in through Keycloak replaces it.
+# The user admin has the password admin. ECK refuses passwords shorter than 6 characters in basic auth
+# secrets, so the user is declared in the file realm format with its bcrypt hash.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elastic-admin
+  namespace: observability
+stringData:
+  users: admin:$2a$10$olelSqt0oLt462GTg55dH.HWL7XFb3w2fSGQ8YnFGfM64CnwdbbbW
+  users_roles: superuser:admin

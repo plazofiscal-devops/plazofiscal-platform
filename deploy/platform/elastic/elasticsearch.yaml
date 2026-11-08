@@ -1,0 +1,41 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: logs
+  namespace: observability
+spec:
+  version: 9.5.6
+  auth:
+    fileRealm:
+      - secretName: elastic-admin
+  nodeSets:
+    - name: default
+      count: 1
+      config:
+        # k3d nodes cannot raise vm.max_map_count, so Elasticsearch reads its files without mmap.
+        node.store.allow_mmap: false
+      podTemplate:
+        spec:
+          affinity:
+            nodeAffinity:
+              # The server node already holds the control plane and most of the monitoring stack.
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: node-role.kubernetes.io/control-plane
+                        operator: DoesNotExist
+          containers:
+            - name: elasticsearch
+              env:
+                - name: ES_JAVA_OPTS
+                  value: -Xms512m -Xmx512m
+              resources:
+                requests: { cpu: 200m, memory: 1Gi }
+                limits: { cpu: "1", memory: 1280Mi }
+      volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes: [ReadWriteOnce]
+            resources:
+              requests: { storage: 5Gi }
