@@ -1,18 +1,26 @@
 <template>
-  <div class="brand">
+  <div class="brand" :class="{ 'brand-large': large }">
     <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-      <rect x="3" y="6" width="26" height="23" rx="5" fill="#f2c14e"/>
-      <rect x="9" y="2" width="3" height="8" rx="1.5" fill="#f2c14e"/>
-      <rect x="20" y="2" width="3" height="8" rx="1.5" fill="#f2c14e"/>
-      <path d="M10 19.5l4 4 8-9" fill="none" stroke="#1b1b1b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <g fill="#5a5a5a">
+        <circle cx="9" cy="9" r="2.4"/><circle cx="16" cy="9" r="2.4"/><circle cx="23" cy="9" r="2.4"/>
+        <circle cx="9" cy="16" r="2.4"/><circle cx="16" cy="16" r="2.4"/>
+        <circle cx="9" cy="23" r="2.4"/><circle cx="16" cy="23" r="2.4"/><circle cx="23" cy="23" r="2.4"/>
+      </g>
+      <circle cx="23" cy="16" r="3.6" fill="#f2c14e"/>
     </svg>
-    <span class="brand-name">PlazoFiscal</span>
+    <span class="brand-name"><span class="brand-light">Plazo</span>Fiscal</span>
   </div>
 </template>
 
 <script>
 export default {
-  name: 'brand'
+  name: 'brand',
+  props: {
+    large: {
+      type: Boolean,
+      default: false
+    }
+  }
 }
 </script>
 
@@ -20,17 +28,30 @@ export default {
 .brand {
   align-items: center;
   display: flex;
-  gap: 0.6rem;
+  gap: 0.55rem;
 }
 
 .brand-mark {
-  height: 2rem;
-  width: 2rem;
+  height: 1.9rem;
+  width: 1.9rem;
 }
 
 .brand-name {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+}
+
+.brand-light {
+  font-weight: 300;
+}
+
+.brand-large .brand-mark {
+  height: 2.6rem;
+  width: 2.6rem;
+}
+
+.brand-large .brand-name {
+  font-size: 2.1rem;
 }
 </style>
