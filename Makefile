@@ -30,6 +30,7 @@ cluster:
 			--k3s-arg '--disable=traefik@server:0' --k3s-arg '--disable=servicelb@server:0' \
 			--kubeconfig-switch-context=false --wait; \
 	fi
+	bash deploy/wait-for-nodes.sh $(CLUSTER)
 
 images:
 	@for service in $(SERVICES); do \
