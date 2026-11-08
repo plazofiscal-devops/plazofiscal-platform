@@ -31,6 +31,7 @@ This document explains what the platform needs, how to run it day to day, and wh
 | `make status` | Shows nodes, pods and resource use |
 | `make forward` | Opens the application on `http://localhost:8080` until the command stops |
 | `make load` | Runs accountant traffic inside the cluster and fails if any request fails. `RATE` and `DURATION` set 15 requests per second for 3 minutes by default |
+| `make check-policies` | Proves every allowed and denied network path and fails on any difference |
 | `make stop` | Pauses the cluster and keeps its data |
 | `make down` | Deletes the cluster and its data |
 
@@ -66,7 +67,7 @@ The repository holds no secret. The deployment generates the signing key of the 
 | Pods in `Pending` | The cluster has no memory left | Run `make status`, then reduce replicas or stop a tool |
 | Pods in `OOMKilled` | A tool exceeded its limit | Raise its limit inside the budget of the architecture document |
 | The machine freezes | Too much memory assigned | Run `make stop`, close programs, and try again with a lower `MEMORY` |
-| Traffic between services is blocked | A network policy has no matching path | Read `deploy/policies/network-policies.yaml` and add the path |
+| Traffic between services is blocked | A network policy has no matching path | Run `make check-policies` to see which path fails, then read `deploy/policies/network-policies.yaml` and add the path |
 | A service keeps the old image | The tag did not change | Use a new `TAG` on each release |
 | `make up` waits after `make stop` | Docker can give a node a new address on restart, and K3s restarts the node until it settles | Wait, since `make up` continues once every node is ready. If five minutes pass, run `make down` and `make up`, which erases the data |
 | `make load` fails at once with `connection refused` | The network policies have not yet registered the load test pod | The load waits for the frontend before it starts. If it still fails, run it again |
