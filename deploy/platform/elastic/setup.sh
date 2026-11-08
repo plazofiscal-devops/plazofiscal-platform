@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Keeps logs and events for 3 days, with no replica on the single Elasticsearch node.
+# Keeps logs and events for 3 days, with no replica on the single Elasticsearch node, and adds the Kibana data views.
 set -euo pipefail
 
 context=${KUBE_CONTEXT:?set KUBE_CONTEXT to the cluster context}
@@ -25,3 +25,14 @@ es _component_template/logs@custom '{
     "settings": { "index.lifecycle.name": "plazofiscal-logs", "index.number_of_replicas": 0 }
   }
 }'
+
+# Kibana data views for the logs of the services and for Kubernetes events.
+kibana() {
+  kubectl --context "$context" --namespace observability exec deployment/logs-kb -c kibana -- \
+    curl --silent --show-error --fail --user admin:admin --header 'kbn-xsrf: true' \
+    --header 'Content-Type: application/json' --request POST "http://localhost:5601/$1" --data "$2" >/dev/null
+  echo "$1 done"
+}
+kibana api/data_views/data_view '{"override": true, "data_view": {"id": "plazofiscal-logs", "name": "PlazoFiscal logs", "title": "logs-plazofiscal-*", "timeFieldName": "@timestamp"}}'
+kibana api/data_views/data_view '{"override": true, "data_view": {"id": "kubernetes-events", "name": "Kubernetes events", "title": "logs-kubernetes.events-*", "timeFieldName": "@timestamp"}}'
+kibana api/data_views/default '{"data_view_id": "plazofiscal-logs", "force": true}'
