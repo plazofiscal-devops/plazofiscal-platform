@@ -1,0 +1,162 @@
+# Every name passes Keycloak first. Paths under /oauth2 belong to oauth2-proxy on every name.
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: auth
+  namespace: ingress
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`auth.plazofiscal.localhost`)
+      kind: Rule
+      services:
+        - { name: keycloak, namespace: identity, port: 8080 }
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: app
+  namespace: ingress
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`app.plazofiscal.localhost`) && PathPrefix(`/oauth2`)
+      kind: Rule
+      priority: 100
+      services:
+        - { name: oauth2-proxy, namespace: identity, port: 80 }
+    - match: Host(`app.plazofiscal.localhost`)
+      kind: Rule
+      middlewares:
+        - { name: sign-in, namespace: identity }
+        - { name: require-user, namespace: identity }
+      services:
+        - { name: frontend, namespace: plazofiscal, port: 8080 }
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana
+  namespace: ingress
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`grafana.plazofiscal.localhost`) && PathPrefix(`/oauth2`)
+      kind: Rule
+      priority: 100
+      services:
+        - { name: oauth2-proxy, namespace: identity, port: 80 }
+    - match: Host(`grafana.plazofiscal.localhost`)
+      kind: Rule
+      middlewares:
+        - { name: sign-in, namespace: identity }
+        - { name: require-platform, namespace: identity }
+      services:
+        - { name: monitoring-grafana, namespace: observability, port: 80 }
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: kibana
+  namespace: ingress
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`kibana.plazofiscal.localhost`) && PathPrefix(`/oauth2`)
+      kind: Rule
+      priority: 100
+      services:
+        - { name: oauth2-proxy, namespace: identity, port: 80 }
+    - match: Host(`kibana.plazofiscal.localhost`)
+      kind: Rule
+      middlewares:
+        - { name: sign-in, namespace: identity }
+        - { name: require-platform, namespace: identity }
+        - { name: kibana-admin, namespace: ingress }
+      services:
+        - { name: logs-kb-http, namespace: observability, port: 5601 }
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: kubecost
+  namespace: ingress
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`kubecost.plazofiscal.localhost`) && PathPrefix(`/oauth2`)
+      kind: Rule
+      priority: 100
+      services:
+        - { name: oauth2-proxy, namespace: identity, port: 80 }
+    - match: Host(`kubecost.plazofiscal.localhost`)
+      kind: Rule
+      middlewares:
+        - { name: sign-in, namespace: identity }
+        - { name: require-platform, namespace: identity }
+      services:
+        - { name: kubecost-cost-analyzer, namespace: observability, port: 9090 }
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jaeger
+  namespace: ingress
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`jaeger.plazofiscal.localhost`) && PathPrefix(`/oauth2`)
+      kind: Rule
+      priority: 100
+      services:
+        - { name: oauth2-proxy, namespace: identity, port: 80 }
+    - match: Host(`jaeger.plazofiscal.localhost`)
+      kind: Rule
+      middlewares:
+        - { name: sign-in, namespace: identity }
+        - { name: require-platform, namespace: identity }
+      services:
+        - { name: jaeger-collector, namespace: observability, port: 16686 }
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: alertmanager
+  namespace: ingress
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`alertmanager.plazofiscal.localhost`) && PathPrefix(`/oauth2`)
+      kind: Rule
+      priority: 100
+      services:
+        - { name: oauth2-proxy, namespace: identity, port: 80 }
+    - match: Host(`alertmanager.plazofiscal.localhost`)
+      kind: Rule
+      middlewares:
+        - { name: sign-in, namespace: identity }
+        - { name: require-platform, namespace: identity }
+      services:
+        - { name: monitoring-kube-prometheus-alertmanager, namespace: observability, port: 9093 }
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prometheus
+  namespace: ingress
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`prometheus.plazofiscal.localhost`) && PathPrefix(`/oauth2`)
+      kind: Rule
+      priority: 100
+      services:
+        - { name: oauth2-proxy, namespace: identity, port: 80 }
+    - match: Host(`prometheus.plazofiscal.localhost`)
+      kind: Rule
+      middlewares:
+        - { name: sign-in, namespace: identity }
+        - { name: require-platform, namespace: identity }
+      services:
+        - { name: monitoring-kube-prometheus-prometheus, namespace: observability, port: 9090 }

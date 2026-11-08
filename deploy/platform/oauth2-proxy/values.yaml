@@ -1,0 +1,21 @@
+# oauth2-proxy 7.15.6 behind every route. One session cookie covers all names under plazofiscal.localhost.
+config:
+  existingSecret: oauth2-proxy
+  emailDomains: ["*"]
+extraArgs:
+  provider: keycloak-oidc
+  oidc-issuer-url: http://auth.plazofiscal.localhost:8000/realms/plazofiscal
+  code-challenge-method: S256
+  scope: openid email profile
+  reverse-proxy: true
+  set-xauthrequest: true
+  cookie-domain: .plazofiscal.localhost
+  whitelist-domain: .plazofiscal.localhost:8000
+  # Plain HTTP on the machine. A public deployment would serve TLS and keep secure cookies.
+  cookie-secure: false
+  cookie-expire: 8h
+  skip-provider-button: true
+  upstream: static://202
+resources:
+  requests: { cpu: 10m, memory: 24Mi }
+  limits: { cpu: 200m, memory: 96Mi }
