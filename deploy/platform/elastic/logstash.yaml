@@ -1,0 +1,74 @@
+apiVersion: logstash.k8s.elastic.co/v1alpha1
+kind: Logstash
+metadata:
+  name: logs
+  namespace: observability
+spec:
+  version: 9.5.6
+  count: 1
+  elasticsearchRefs:
+    - name: logs
+      clusterName: logs
+  config:
+    pipeline.workers: 1
+  services:
+    - name: http
+      service:
+        spec:
+          ports:
+            - name: http
+              port: 8080
+              targetPort: 8080
+  pipelines:
+    - pipeline.id: main
+      config.string: |
+        input {
+          http { port => 8080 codec => json }
+        }
+        filter {
+          if [kind] == "event" {
+            mutate {
+              add_field => { "[data_stream][dataset]" => "kubernetes.events" }
+              rename => { "[involvedObject]" => "[kubernetes][object]" "[reason]" => "[event][reason]" "[type]" => "[event][type]" }
+            }
+          } else {
+            mutate {
+              add_field => { "[data_stream][dataset]" => "plazofiscal" }
+              rename => { "[log]" => "message" "[stream]" => "[log][stream]" }
+            }
+            if [kubernetes][labels][app] {
+              mutate { copy => { "[kubernetes][labels][app]" => "[service][name]" } }
+            } else if [kubernetes][container_name] {
+              mutate { copy => { "[kubernetes][container_name]" => "[service][name]" } }
+            }
+            grok {
+              match => { "message" => "(?i)\b(?<[log][level]>TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\b" }
+              tag_on_failure => []
+            }
+            # Readiness and liveness probes hit every pod every few seconds and say nothing about accountants.
+            if [message] =~ /GET \/(health|ready|healthz)\b/ { drop {} }
+          }
+          mutate { remove_field => ["[event][original]", "[url]", "[http]", "[user_agent]", "[host]"] }
+        }
+        output {
+          elasticsearch {
+            hosts => [ "${LOGS_ES_HOSTS}" ]
+            user => "${LOGS_ES_USER}"
+            password => "${LOGS_ES_PASSWORD}"
+            ssl_certificate_authorities => "${LOGS_ES_SSL_CERTIFICATE_AUTHORITY}"
+            data_stream => "true"
+            # The dataset comes from [data_stream][dataset] of each event.
+            data_stream_type => "logs"
+            data_stream_namespace => "default"
+          }
+        }
+  podTemplate:
+    spec:
+      containers:
+        - name: logstash
+          env:
+            - name: LS_JAVA_OPTS
+              value: -Xms256m -Xmx256m
+          resources:
+            requests: { cpu: 100m, memory: 512Mi }
+            limits: { cpu: "1", memory: 768Mi }

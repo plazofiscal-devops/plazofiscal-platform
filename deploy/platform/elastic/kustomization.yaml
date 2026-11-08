@@ -4,3 +4,4 @@ resources:
   - admin-user.yaml
   - elasticsearch.yaml
   - kibana.yaml
+  - logstash.yaml
