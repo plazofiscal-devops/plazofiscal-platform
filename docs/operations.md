@@ -30,6 +30,7 @@ This document explains what the platform needs, how to run it day to day, and wh
 | `make up` | Creates the cluster, builds the images and deploys |
 | `make status` | Shows nodes, pods and resource use |
 | `make forward` | Opens the application on `http://localhost:8080` until the command stops |
+| `make load` | Runs accountant traffic inside the cluster and fails if any request fails. `RATE` and `DURATION` set 15 requests per second for 3 minutes by default |
 | `make stop` | Pauses the cluster and keeps its data |
 | `make down` | Deletes the cluster and its data |
 
@@ -41,7 +42,14 @@ All commands pass the `k3d-plazofiscal` context, so they never touch another clu
 make rollout SERVICE=todos-api TAG=v2
 ```
 
-The command builds the image with the Docker of the machine, imports it into the three nodes and starts a rolling update. To return to the previous version, run this.
+The command builds the image with the Docker of the machine, imports it into the three nodes and starts a rolling update. To prove that a release loses no request, start the load first in another terminal and release while it runs.
+
+```bash
+make load DURATION=4m
+make rollout SERVICE=frontend TAG=v2
+```
+
+The load prints its summary at the end, and `http_req_failed` must read 0.00 percent. To return to the previous version, run this.
 
 ```bash
 kubectl --context k3d-plazofiscal --namespace plazofiscal rollout undo deployment/todos-api
@@ -61,4 +69,5 @@ The repository holds no secret. The deployment generates the signing key of the 
 | Traffic between services is blocked | A network policy has no matching path | Read `deploy/policies/network-policies.yaml` and add the path |
 | A service keeps the old image | The tag did not change | Use a new `TAG` on each release |
 | `make up` waits after `make stop` | Docker can give a node a new address on restart, and K3s restarts the node until it settles | Wait, since `make up` continues once every node is ready. If five minutes pass, run `make down` and `make up`, which erases the data |
+| `make load` fails at once with `connection refused` | The network policies have not yet registered the load test pod | The load waits for the frontend before it starts. If it still fails, run it again |
 | A service logs `waiting for redis` at start | Redis is starting, or the network policies have not yet registered the new pod | Nothing, since the services retry the connection |
