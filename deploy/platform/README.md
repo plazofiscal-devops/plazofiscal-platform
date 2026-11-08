@@ -1,13 +1,13 @@
 # Platform components
 
-Each component installs from a chart or operator pinned to an exact version, with reduced memory settings in this folder. `make platform` runs `install.sh`, which installs the components that exist so far, and `make up` calls it. [Architecture](../../docs/architecture.md) gives the memory budget of each one.
+Each component installs from a chart or operator pinned to an exact version, with reduced memory settings in this folder. `make platform` runs `install.sh`, which installs the components that exist so far, and `make up` calls it. The monitoring stack installs first, since KEDA and Kubecost declare ServiceMonitors that need its resource types. The installation also generates the Grafana password into a Secret, and turns the Slack webhook file described in [operations](../../docs/operations.md) into another Secret when the file exists. [Architecture](../../docs/architecture.md) gives the memory budget of each one.
 
 | Component | Namespace | Purpose |
 |---|---|---|
 | Traefik | `ingress` | Entry point |
 | KEDA 2.21.0 | `keda` | Scaling by date and load |
-| kube-prometheus-stack | `observability` | Metrics, alerts and Grafana |
-| Kubecost | `observability` | Cost by namespace and service |
+| kube-prometheus-stack 93.1.0 | `observability` | Prometheus, Alertmanager, Grafana and exporters |
+| Kubecost 2.8.7 | `observability` | Cost by namespace and service, from the same Prometheus |
 | ECK with Elasticsearch, Logstash and Kibana | `observability` | Logs |
 | Jaeger | `observability` | Traces |
 | Kubernetes event exporter | `observability` | Events |

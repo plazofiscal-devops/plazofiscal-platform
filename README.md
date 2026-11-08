@@ -12,9 +12,10 @@ PlazoFiscal is an invented company for an academic exercise. It has no link with
 | Network isolation | Default deny, with each allowed path declared |
 | Persistent storage | Redis keeps obligations on a persistent volume |
 | Autoscaling | CPU load, plus rules for the filing dates of the business |
-| Cost visibility | Kubecost, by namespace and service |
+| Cost visibility | Kubecost, by namespace and service, reading the platform Prometheus |
 | Centralized logs | Elasticsearch, Logstash and Kibana |
-| Metrics, traces, events and alerts | Prometheus, Jaeger, Kubernetes events and Alertmanager, in one Grafana dashboard |
+| Metrics and alerts | Prometheus and Grafana dashboards for the machine, the cluster, the network and autoscaling, with alerts posted to Slack |
+| Traces and events | Jaeger and Kubernetes events, joined with metrics in one business dashboard |
 | Strong sign-in | Keycloak with a required second factor |
 | One command operation | `make up` builds and deploys everything, and `make down` removes it |
 
@@ -25,6 +26,7 @@ app/                 Five services, based on an open source microservice example
 deploy/app/          Application manifests with rolling updates
 deploy/policies/     Network policies
 deploy/autoscaling/  Scaling rules by load and date
+deploy/monitoring/   Alert rules and dashboards of PlazoFiscal
 deploy/platform/     Observability, costs and sign-in
 docs/                Business case, architecture and operations
 Makefile             Commands to run the platform
@@ -46,10 +48,11 @@ You need Docker, k3d and kubectl. The platform is sized for a machine with 8 cor
 make up
 make status
 make forward
+make dashboards
 make down
 ```
 
-`make up` creates the cluster, installs the platform components, builds the images and deploys the application. The first run takes several minutes while it downloads and builds the images, and later runs take about two to four minutes. `make forward` opens the application on `http://localhost:8080`.
+`make up` creates the cluster, installs the platform components, builds the images and deploys the application. The first run takes several minutes while it downloads and builds the images, and later runs take about two to four minutes. `make forward` opens the application on `http://localhost:8080`, and `make dashboards` opens Grafana, Kubecost, Alertmanager and Prometheus.
 
 [Operations](docs/operations.md) lists every command and what to do when memory runs short.
 

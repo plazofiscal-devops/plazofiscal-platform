@@ -43,20 +43,20 @@ One K3s cluster holds the application and the operations tools. k3d runs its thr
 
 Memory limits the design more than any other factor. The reference machine has 8 cores and 13.5 GiB. k3d caps the server node at 3 GiB and each agent at 3.5 GiB, 10 GiB in total, and leaves the rest to the operating system. The nodes share the CPU with no cap. Each tool runs one replica with reduced memory.
 
-| Component | Estimated memory |
-|---|---|
-| Kubernetes on three nodes and metrics server | 0.8 GiB |
-| Elasticsearch | 1.5 GiB |
-| Logstash and Kibana | 1.3 GiB |
-| Prometheus, Alertmanager, Grafana and exporters | 1.1 GiB |
-| Kubecost | 0.6 GiB |
-| Jaeger and event exporter | 0.2 GiB |
-| Keycloak and oauth2-proxy | 0.8 GiB |
-| Traefik and KEDA | 0.3 GiB |
-| Application at maximum replicas | 1.8 GiB |
-| **Total** | **8.4 GiB** |
+| Component | Memory | Origin |
+|---|---|---|
+| Kubernetes on three nodes and metrics server | 0.8 GiB | Measured |
+| Elasticsearch | 1.5 GiB | Estimate |
+| Logstash and Kibana | 1.3 GiB | Estimate |
+| Prometheus, Alertmanager, Grafana and exporters | 1.0 GiB | Measured |
+| Kubecost | 0.5 GiB | Measured |
+| Jaeger and event exporter | 0.2 GiB | Estimate |
+| Keycloak and oauth2-proxy | 0.8 GiB | Estimate |
+| Traefik and KEDA | 0.3 GiB | KEDA measured at 0.2 GiB with its metrics on |
+| Application at maximum replicas | 1.8 GiB | Measured |
+| **Total** | **8.2 GiB** | |
 
-The first row is measured on the reference machine, KEDA was measured at about 70 MiB, and the rest are estimates. With only the application running, the three nodes use about 2.0 GiB. The users service takes 1.0 GiB of that, because its Java runtime reserves memory when it starts, and the development server of the frontend takes 0.15 GiB.
+Measured rows come from `kubectl top` on the reference machine with the application running. Grafana alone takes about 0.45 GiB and Prometheus about 0.4 GiB, which grows with the data it keeps. With only the application running, the three nodes use about 2.0 GiB. The users service takes 1.0 GiB of that, because its Java runtime reserves memory when it starts, and the development server of the frontend takes 0.15 GiB.
 
 The cluster runs three nodes, so a rolling update, a disruption budget and the spread of replicas have a real effect. More nodes would repeat the per node overhead with no gain for the demonstration. A production service would run its nodes across zones, on separate machines.
 
@@ -94,7 +94,7 @@ Redis runs one replica, so its restart interrupts the service. While it is down,
 
 ## 6. Network isolation
 
-The `plazofiscal` namespace starts from default deny, for traffic in both directions. Each policy then opens one path, and the policy controller embedded in K3s enforces them. A new pod can be refused for a few seconds until the controller registers it, so the services retry their first connection to Redis. No service reaches another unless a policy names that path.
+The `plazofiscal` namespace starts from default deny, for traffic in both directions. Each policy then opens one path, and the policy controller embedded in K3s enforces them. A new pod can be refused for a few seconds until the controller registers it, so the services retry their first connection to Redis. No service reaches another unless a policy names that path. No service exposes metrics yet, so the observability namespace has no path into the application, and Prometheus reads container and replica figures from the kubelet and kube-state-metrics.
 
 | From | To | Port |
 |---|---|---|
@@ -103,10 +103,9 @@ The `plazofiscal` namespace starts from default deny, for traffic in both direct
 | Sign-in service | Users service | 8083 |
 | Obligations service and activity processor | Redis | 6379 |
 | Load test, only while `make load` runs | Frontend | 8080 |
-| Observability namespace | Each pod | Metrics |
 | Each pod | Trace collector | 9411 |
 
-`make check-policies` proves the table. It opens a connection along every allowed path from the real pods, since a probe pod that carried an application label would join that service and receive real traffic. It then tries the paths the policies leave closed, between services, from an unlabeled pod, from another namespace, from the `ingress` namespace toward anything but the frontend, and from the services toward the internet and the Kubernetes API. A refused connection looks the same whether a policy rejects it or nothing listens on the port, so every denied path targets a port that an allowed path reaches in the same run, and two control paths show that the internet and the Kubernetes API answer a pod in a namespace with no policies. The script lists each of its 28 paths with the expected and the actual result and fails on any difference. When one policy was removed on purpose, it reported exactly the two paths that policy opened.
+`make check-policies` proves the table. It opens a connection along every allowed path from the real pods, since a probe pod that carried an application label would join that service and receive real traffic. It then tries the paths the policies leave closed, between services, from an unlabeled pod, from another namespace, from the `ingress` namespace toward anything but the frontend, from the `observability` namespace toward the services, and from the services toward the internet and the Kubernetes API. A refused connection looks the same whether a policy rejects it or nothing listens on the port, so every denied path targets a port that an allowed path reaches in the same run, and two control paths show that the internet and the Kubernetes API answer a pod in a namespace with no policies. The script lists each of its 30 paths with the expected and the actual result and fails on any difference. When one policy was removed on purpose, it reported exactly the two paths that policy opened.
 
 ## 7. Autoscaling
 
@@ -129,7 +128,7 @@ The rules are KEDA ScaledObjects, one short declarative object per service. A sc
 
 ## 8. Observability
 
-One Grafana dashboard joins the five signals with the business indicators.
+The `observability` namespace holds the tools that watch the platform. The business dashboard joins the five signals with the business indicators.
 
 | Signal | Source | Storage |
 |---|---|---|
@@ -137,9 +136,45 @@ One Grafana dashboard joins the five signals with the business indicators.
 | Logs | Logstash | Elasticsearch |
 | Traces | Services through Zipkin format, received by Jaeger | Elasticsearch |
 | Events | Kubernetes event exporter | Elasticsearch |
-| Alerts | Prometheus rules | Alertmanager |
+| Alerts | Prometheus rules | Alertmanager, which posts to Slack |
 
-Kubecost reads the same Prometheus, so the cluster runs one metrics server.
+### Metrics
+
+The kube-prometheus-stack chart installs the Prometheus operator, Prometheus, Alertmanager, Grafana, kube-state-metrics and node exporter. Prometheus reads the kubelet and its container metrics, the Kubernetes API, CoreDNS, kube-state-metrics, node exporter, KEDA and Kubecost. It keeps 7 days on a 4 GiB volume, capped at 3 GB, which covers a week of cost history. K3s runs the controller manager, the scheduler, etcd and kube-proxy inside one process with no separate metrics endpoints, so their scrapes, rules and dashboards are off.
+
+Each k3d node is a container on the same machine. Node exporter therefore reports the CPU, disks and network of the whole machine three times, and k3d replaces the memory file of each node to cap it, which leaves node exporter with no memory figures. The memory of each node comes from the kubelet, in the Nodes Overview and Node dashboards.
+
+### Dashboards
+
+Grafana loads its dashboards from ConfigMaps, so each one lives in the repository.
+
+| Layer | Dashboards |
+|---|---|
+| Machine | Node Exporter Nodes and USE Method, for CPU, load, disks and network |
+| Cluster | Compute Resources for the cluster, the nodes, each namespace, workload and pod, and Persistent Volumes |
+| Application network | Networking by namespace, workload and pod, with bytes and packets |
+| Autoscaling | KEDA, with the replicas of each scaled service against its maximum over time |
+| Alerts | Alertmanager Overview, and the alert rules in Grafana Alerting |
+| Platform | Prometheus, Grafana, kubelet, CoreDNS and the Kubernetes API |
+| Costs | The Kubecost interface |
+
+Business indicators and the request rate, errors and latency of each service need the services to publish metrics, and the business dashboard adds them.
+
+### Alerts
+
+The chart brings the community rules for Kubernetes, such as a pod that restarts in a loop or an HPA that stays at its maximum for 15 minutes. That second rule covers the capacity of the filing calendar. PlazoFiscal adds one rule of its own.
+
+| Alert | Severity | Fires when |
+|---|---|---|
+| `PlazoFiscalServiceDown` | Critical | A Deployment or StatefulSet of `plazofiscal` has no ready replica for 1 minute |
+
+Alertmanager groups alerts by name and namespace and posts each group to a Slack channel, firing and resolved. The webhook address is a credential, so it lives in a file outside the repository that the installation turns into a Secret. Without that file, alerts stay visible in Alertmanager and Grafana and leave the cluster through no channel. `Watchdog`, which always fires to prove the pipeline is alive, and the inhibition helper never reach Slack.
+
+The path was proven end to end. With the users service scaled to zero, the rule went pending after about 40 seconds, fired one minute later and reached Slack within the next 40 seconds. After the restore, the resolved message reached Slack about five minutes later, at the next group interval.
+
+### Costs
+
+Kubecost reads the same Prometheus, so the cluster runs one metrics server. Version 2.8 is the last line of Kubecost built on Prometheus. Version 3 replaced Prometheus with its own agent and a ClickHouse database, its chart requests 3 GiB for the aggregator alone, and its authors recommend 8 GB for it, which does not fit a node of 3.5 GiB. Kubecost 2.8 runs as one pod with its cost model, aggregator and interface, at about 0.5 GiB, and its forecasting, network costs and bundled Grafana are off.
 
 ## 9. Sign-in
 
@@ -154,6 +189,8 @@ Keycloak requires a password and a one-time code. Grafana connects to it directl
 | Traefik | `ingress-nginx` | `ingress-nginx` is retired and receives no fixes |
 | Keycloak | An external identity provider | It works with no outside dependency, at about 0.8 GiB |
 | Calendar rules through KEDA | A scheduled job that edits the HPA | One declarative object, with no extra permissions |
+| Kubecost 2.8 on the platform Prometheus | Kubecost 3, or OpenCost | Kubecost 3 needs more memory than a node has, and OpenCost lacks the Kubecost interface |
+| Alerts to Slack | A mail catcher inside the cluster, or Discord | Alerts reach a channel people read on their phones, and Alertmanager supports Slack natively |
 | One public repository | Several repositories | One change can touch code, manifests and documents |
 
 ## 11. Assumptions and pending confirmations
@@ -161,7 +198,7 @@ Keycloak requires a password and a one-time code. Grafana connects to it directl
 | Item | Who confirms | Effect if it fails |
 |---|---|---|
 | The stack fits in 10 GiB | First full deployment | Reduce retention, then remove Logstash from the path and keep Elasticsearch and Kibana |
-| Kubecost shows useful figures on a local cluster with default prices | Installation | Use OpenCost, its open source base |
+| Kubecost 2.8 keeps working on Kubernetes 1.36 | Each upgrade of K3s | Move to OpenCost, its open source base, on the same Prometheus |
 | Kibana can skip its login behind `oauth2-proxy` | Installation | Keep a second login, or read logs in Grafana |
 
 ## Prices in Kubecost
