@@ -1,5 +1,6 @@
 'use strict';
 const {promisify} = require('util');
+const metrics = require('./metrics');
 
 const OPERATION_CREATE = 'CREATE',
       OPERATION_DELETE = 'DELETE';
@@ -91,6 +92,7 @@ class TodoController {
             const todo = Object.assign({id: id}, obligation)
             await this._hset(itemsKey(username), id, JSON.stringify(todo))
             this._logOperation(OPERATION_CREATE, username, id, traceId)
+            metrics.obligationsCreated.inc({tax: obligation.tax})
             res.json(todo)
         } catch (err) {
             unavailable(res, err)
@@ -104,6 +106,7 @@ class TodoController {
         try {
             await this._hdel(itemsKey(username), id)
             this._logOperation(OPERATION_DELETE, username, id, traceId)
+            metrics.obligationsDeleted.inc()
             res.status(204)
             res.send()
         } catch (err) {

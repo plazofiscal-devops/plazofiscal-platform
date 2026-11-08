@@ -61,7 +61,7 @@ kubectl --context k3d-plazofiscal --namespace plazofiscal rollout undo deploymen
 
 ## 4. Dashboards, logs, traces and alerts
 
-Every tool and the application open through the entry point on port 8000, after Keycloak asks for a password and a code.
+Every tool and the application open through the entry point on port 8000, after Keycloak asks for a password and a code. Grafana opens on the PlazoFiscal dashboard, with the business indicators, service health, alerts, logs, traces and events of the platform.
 
 | Name | Address |
 |---|---|

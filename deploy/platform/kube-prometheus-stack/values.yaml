@@ -59,9 +59,48 @@ grafana:
   defaultDashboardsTimezone: America/Bogota
   # Keycloak signs people in. The route already required the second factor, so Grafana opens with no extra form.
   envFromSecret: grafana-oidc
+  envValueFrom:
+    ELASTIC_PASSWORD:
+      secretKeyRef: { name: logs-es-elastic-user, key: elastic, optional: true }
+  # Logs, events and traces for the business dashboard. ECK serves Elasticsearch with its own certificate authority.
+  additionalDataSources:
+    - name: Logs
+      uid: logs
+      type: elasticsearch
+      url: https://logs-es-http.observability.svc:9200
+      basicAuth: true
+      basicAuthUser: elastic
+      secureJsonData:
+        basicAuthPassword: $ELASTIC_PASSWORD
+      jsonData:
+        index: logs-plazofiscal-*
+        timeField: "@timestamp"
+        logMessageField: message
+        logLevelField: log.level
+        tlsSkipVerify: true
+    - name: Events
+      uid: events
+      type: elasticsearch
+      url: https://logs-es-http.observability.svc:9200
+      basicAuth: true
+      basicAuthUser: elastic
+      secureJsonData:
+        basicAuthPassword: $ELASTIC_PASSWORD
+      jsonData:
+        index: logs-kubernetes.events-*
+        timeField: "@timestamp"
+        logMessageField: message
+        logLevelField: event.type
+        tlsSkipVerify: true
+    - name: Jaeger
+      uid: jaeger
+      type: jaeger
+      url: http://jaeger-collector.observability.svc:16686
   grafana.ini:
     server:
       root_url: http://grafana.plazofiscal.localhost:8000
+    dashboards:
+      default_home_dashboard_path: /tmp/dashboards/plazofiscal.json
     auth.generic_oauth:
       enabled: true
       name: Keycloak

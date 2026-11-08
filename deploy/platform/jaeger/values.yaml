@@ -1,4 +1,4 @@
-# Jaeger 2.22.0 as one pod. The release name jaeger-collector is the address the services already use.
+# Jaeger 2.19.0 as one pod. The release name jaeger-collector is the address the services already use.
 # Traces live in memory, capped by count, and a restart of the pod clears them.
 userconfig:
   service:

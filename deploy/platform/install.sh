@@ -6,13 +6,6 @@ context=${KUBE_CONTEXT:?set KUBE_CONTEXT to the cluster context}
 webhook_file=${ALERT_WEBHOOK_FILE:-$HOME/.config/plazofiscal/alert-webhook}
 kubectl=(kubectl --context "$context")
 
-helm upgrade --install traefik traefik \
-  --repo https://traefik.github.io/charts --version 42.3.1 \
-  --kube-context "$context" --namespace ingress --create-namespace \
-  --values deploy/platform/traefik/values.yaml --wait --timeout 10m
-if "${kubectl[@]}" apply --filename deploy/platform/traefik/dns.yaml | grep -q -E 'created|configured'; then
-  "${kubectl[@]}" --namespace kube-system rollout restart deployment/coredns
-fi
 
 "${kubectl[@]}" create namespace observability --dry-run=client --output yaml | "${kubectl[@]}" apply --filename -
 
@@ -48,6 +41,15 @@ helm upgrade --install monitoring kube-prometheus-stack \
   --values deploy/platform/kube-prometheus-stack/values.yaml "${alert_values[@]}" \
   --wait --timeout 15m
 
+# Traefik installs after the monitoring stack, which provides the ServiceMonitor type it uses.
+helm upgrade --install traefik traefik \
+  --repo https://traefik.github.io/charts --version 42.3.1 \
+  --kube-context "$context" --namespace ingress --create-namespace \
+  --values deploy/platform/traefik/values.yaml --wait --timeout 10m
+if "${kubectl[@]}" apply --filename deploy/platform/traefik/dns.yaml | grep -q -E 'created|configured'; then
+  "${kubectl[@]}" --namespace kube-system rollout restart deployment/coredns
+fi
+
 # KEDA installs after the monitoring stack, which provides the ServiceMonitor type it uses.
 helm upgrade --install keda keda \
   --repo https://kedacore.github.io/charts --version 2.21.0 \
@@ -69,10 +71,16 @@ helm upgrade --install elastic-operator eck-operator \
   --kube-context "$context" --namespace elastic-system --create-namespace \
   --values deploy/platform/eck-operator/values.yaml --wait --timeout 10m
 
+elastic_existed=false
+"${kubectl[@]}" --namespace observability get secret logs-es-elastic-user >/dev/null 2>&1 && elastic_existed=true
 "${kubectl[@]}" apply --kustomize deploy/platform/elastic
 "${kubectl[@]}" --namespace observability wait elasticsearch/logs --for=jsonpath='{.status.health}'=green --timeout=10m
 "${kubectl[@]}" --namespace observability wait kibana/logs --for=jsonpath='{.status.health}'=green --timeout=10m
 KUBE_CONTEXT=$context bash deploy/platform/elastic/setup.sh
+# Grafana reads the elastic password at start, so a first install restarts it once the password exists.
+if [[ $elastic_existed == false ]]; then
+  "${kubectl[@]}" --namespace observability rollout restart deployment/monitoring-grafana
+fi
 
 for release in logs events; do
   helm upgrade --install "fluent-bit-$release" fluent-bit \
@@ -81,8 +89,9 @@ for release in logs events; do
     --values "deploy/platform/fluent-bit/$release.yaml" --wait --timeout 10m
 done
 
+# Jaeger 2.19 is the last line with the query API that the Grafana Jaeger data source calls.
 helm upgrade --install jaeger-collector jaeger \
-  --repo https://jaegertracing.github.io/helm-charts --version 4.16.1 \
+  --repo https://jaegertracing.github.io/helm-charts --version 4.11.2 \
   --kube-context "$context" --namespace observability \
   --values deploy/platform/jaeger/values.yaml --wait --timeout 10m
 

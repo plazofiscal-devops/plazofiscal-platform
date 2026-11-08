@@ -103,6 +103,14 @@ expect allow "frontend -> todos-api 8082" plazofiscal "$frontend" "$todos_ip" 80
 expect allow "auth-api -> users-api 8083" plazofiscal "$auth" "$users_ip" 8083
 expect allow "todos-api -> redis 6379" plazofiscal "$todos" "$redis_ip" 6379
 expect allow "log-message-processor -> redis 6379" plazofiscal "$processor" "$redis_ip" 6379
+# The Prometheus image has no shell, so its own scrape proves the path. Every todos-api target must be up.
+scrape=$(kube get --raw "/api/v1/namespaces/observability/services/monitoring-kube-prometheus-prometheus:9090/proxy/api/v1/query?query=min(up%7Bjob%3D%22observability%2Ftodos-api%22%7D)" 2>/dev/null)
+if [[ $scrape == *'"value":['*',"1"]'* ]]; then
+  printf '%-6s %-6s %s\n' ok allow "Prometheus -> todos-api 8082 metrics"
+else
+  printf '%-6s %-6s %s, got deny\n' FAIL allow "Prometheus -> todos-api 8082 metrics"
+  failures=$((failures + 1))
+fi
 if kube --namespace plazofiscal exec "$todos" -- nslookup kubernetes.default.svc.cluster.local >/dev/null 2>&1; then
   printf '%-6s %-6s %s\n' ok allow "todos-api -> cluster DNS 53"
 else
@@ -129,7 +137,7 @@ expect deny "pod in default -> frontend 8080" default policy-probe "$frontend_ip
 expect deny "pod in default -> todos-api 8082" default policy-probe "$todos_ip" 8082
 expect deny "ingress namespace -> todos-api 8082" ingress policy-probe "$todos_ip" 8082
 expect deny "ingress namespace -> redis 6379" ingress policy-probe "$redis_ip" 6379
-expect deny "observability namespace -> todos-api 8082" observability policy-probe "$todos_ip" 8082
+expect deny "unlabeled pod in observability -> todos-api 8082" observability policy-probe "$todos_ip" 8082
 expect deny "observability namespace -> redis 6379" observability policy-probe "$redis_ip" 6379
 
 echo "Controls, the same destinations answer a pod in default, which has no policies"

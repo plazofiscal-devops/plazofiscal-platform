@@ -1,0 +1,16 @@
+# Prometheus reads the business and request metrics of the obligations service from each pod.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: todos-api
+  namespace: observability
+spec:
+  namespaceSelector:
+    matchNames: [plazofiscal]
+  selector:
+    matchLabels:
+      app: todos-api
+  podMetricsEndpoints:
+    - portNumber: 8082
+      path: /metrics
+      interval: 30s

@@ -22,3 +22,11 @@ providers:
 ingressRoute:
   dashboard:
     enabled: false
+# Request totals and durations per router, for the health panels of the business dashboard.
+metrics:
+  prometheus:
+    addRoutersLabels: true
+    service:
+      enabled: true
+    serviceMonitor:
+      enabled: true

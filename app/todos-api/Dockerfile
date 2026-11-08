@@ -9,7 +9,7 @@ FROM node:20-alpine
 RUN apk add --no-cache curl
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
-COPY package.json server.js routes.js todoController.js ./
+COPY package.json server.js routes.js todoController.js metrics.js ./
 USER node
 EXPOSE 8082
 HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=3 \
