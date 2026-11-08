@@ -1,0 +1,97 @@
+# Keycloak 26.8.2 as one pod. The dev-file database lives on a volume, so enrolled codes survive restarts.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: keycloak-data
+  namespace: identity
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: { storage: 1Gi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: identity
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: keycloak }
+  template:
+    metadata:
+      labels: { app: keycloak }
+    spec:
+      securityContext:
+        fsGroup: 1000
+      affinity:
+        nodeAffinity:
+          # The server node already holds the control plane and most of the monitoring stack.
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.8.2
+          # The realm is imported on the first start only. Later changes to realm.json need the realm deleted first.
+          args: [start, --import-realm]
+          env:
+            - name: KC_DB
+              value: dev-file
+            - name: KC_HOSTNAME
+              value: http://auth.plazofiscal.localhost:8000
+            - name: KC_HTTP_ENABLED
+              value: "true"
+            - name: KC_PROXY_HEADERS
+              value: xforwarded
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+            - name: JAVA_OPTS_KC_HEAP
+              value: -XX:InitialRAMPercentage=25 -XX:MaxRAMPercentage=50
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              value: admin
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: sso, key: keycloak-admin-password }
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef: { name: sso, key: oauth2-proxy-client-secret }
+            - name: GRAFANA_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef: { name: sso, key: grafana-client-secret }
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: management, containerPort: 9000 }
+          readinessProbe:
+            httpGet: { path: /health/ready, port: management }
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /health/live, port: management }
+            initialDelaySeconds: 120
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits: { cpu: "1", memory: 768Mi }
+          volumeMounts:
+            - { name: data, mountPath: /opt/keycloak/data/h2 }
+            - { name: realm, mountPath: /opt/keycloak/data/import, readOnly: true }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: keycloak-data }
+        - name: realm
+          configMap: { name: keycloak-realm }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: identity
+spec:
+  selector: { app: keycloak }
+  ports:
+    - { name: http, port: 8080, targetPort: http }

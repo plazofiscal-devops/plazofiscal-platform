@@ -1,0 +1,24 @@
+# Traefik 3.7.17 as the single entry point. k3d maps port 8000 of the machine to node port 30800,
+# and the Service also listens on 8000, so names under plazofiscal.localhost use the same port inside and outside.
+deployment:
+  replicas: 1
+resources:
+  requests: { cpu: 20m, memory: 48Mi }
+  limits: { cpu: 500m, memory: 160Mi }
+service:
+  spec:
+    type: NodePort
+ports:
+  web:
+    exposedPort: 8000
+    nodePort: 30800
+  websecure:
+    expose:
+      default: false
+providers:
+  kubernetesCRD:
+    # Routes in each namespace use the sign-in middleware that lives in ingress.
+    allowCrossNamespace: true
+ingressRoute:
+  dashboard:
+    enabled: false

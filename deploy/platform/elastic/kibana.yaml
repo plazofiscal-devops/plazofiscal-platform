@@ -16,6 +16,8 @@ spec:
   config:
     telemetry.optIn: false
     telemetry.allowChangingOptInStatus: false
+    # The entry point passes the admin user in a basic Authorization header once Keycloak accepted the second factor.
+    xpack.security.authc.http.schemes: [apikey, bearer, basic]
   podTemplate:
     spec:
       containers:

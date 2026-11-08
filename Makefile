@@ -7,10 +7,11 @@ AGENT_MEMORY ?= 3.5g
 TAG ?= local
 RATE ?= 15
 DURATION ?= 3m
+COSTS ?= off
 SERVICES := auth-api users-api todos-api frontend log-message-processor
 
 .DEFAULT_GOAL := help
-.PHONY: help up cluster platform images deploy status forward dashboards load check-policies rollout stop down
+.PHONY: help up cluster platform images deploy status forward dashboards costs-on costs-off load check-policies rollout stop down
 
 help:
 	@printf '%s\n' \
@@ -18,6 +19,7 @@ help:
 		'make status                          Show nodes, pods and resource use' \
 		'make forward                         Open the application on http://localhost:8080' \
 		'make dashboards                      Open Grafana, Kubecost, Alertmanager, Prometheus, Kibana and Jaeger' \
+		'make costs-on                        Start Kubecost for a cost review, and make costs-off to stop it' \
 		'make load RATE=15 DURATION=3m        Run accountant traffic inside the cluster' \
 		'make check-policies                  Prove every allowed and denied network path' \
 		'make rollout SERVICE=todos-api TAG=v2  Build one image and start a rolling update' \
@@ -33,12 +35,13 @@ cluster:
 		k3d cluster create $(CLUSTER) --servers 1 --agents $(AGENTS) --image $(K3S_IMAGE) \
 			--servers-memory $(SERVER_MEMORY) --agents-memory $(AGENT_MEMORY) \
 			--k3s-arg '--disable=traefik@server:0' --k3s-arg '--disable=servicelb@server:0' \
+			--port 8000:30800@loadbalancer \
 			--kubeconfig-switch-context=false --wait; \
 	fi
 	bash deploy/wait-for-nodes.sh $(CLUSTER)
 
 platform:
-	KUBE_CONTEXT=$(CONTEXT) bash deploy/platform/install.sh
+	KUBE_CONTEXT=$(CONTEXT) COSTS=$(COSTS) bash deploy/platform/install.sh
 
 images:
 	@for service in $(SERVICES); do \
@@ -59,6 +62,13 @@ forward:
 
 dashboards:
 	KUBE_CONTEXT=$(CONTEXT) bash deploy/dashboards.sh
+
+costs-on:
+	kubectl --context $(CONTEXT) --namespace observability scale deployment/kubecost-cost-analyzer --replicas=1
+	kubectl --context $(CONTEXT) --namespace observability rollout status deployment/kubecost-cost-analyzer --timeout=10m
+
+costs-off:
+	kubectl --context $(CONTEXT) --namespace observability scale deployment/kubecost-cost-analyzer --replicas=0
 
 load:
 	KUBE_CONTEXT=$(CONTEXT) bash deploy/load/run.sh $(RATE) $(DURATION)

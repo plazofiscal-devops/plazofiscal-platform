@@ -16,7 +16,7 @@ PlazoFiscal is an invented company for an academic exercise. It has no link with
 | Centralized logs and events | Fluent Bit, Logstash, Elasticsearch and Kibana |
 | Metrics and alerts | Prometheus and Grafana dashboards for the machine, the cluster, the network and autoscaling, with alerts posted to Slack |
 | Traces | Jaeger, following one request through the frontend and the services |
-| Strong sign-in | Keycloak with a required second factor |
+| Strong sign-in | Keycloak with a required authenticator code in front of every tool and the application |
 | One command operation | `make up` builds and deploys everything, and `make down` removes it |
 
 ## Repository layout
@@ -52,7 +52,7 @@ make dashboards
 make down
 ```
 
-`make up` creates the cluster, installs the platform components, builds the images and deploys the application. The first run takes several minutes while it downloads and builds the images, and later runs take about two to four minutes. `make forward` opens the application on `http://localhost:8080`, and `make dashboards` opens Grafana, Kubecost, Alertmanager, Prometheus, Kibana and Jaeger.
+`make up` creates the cluster, installs the platform components, builds the images and deploys the application. The first run takes several minutes while it downloads and builds the images, and later runs take about two to four minutes. The application then opens on `http://app.plazofiscal.localhost:8000` and each tool on its own name, such as `http://grafana.plazofiscal.localhost:8000`, after Keycloak asks for a password and an authenticator code. [Operations](docs/operations.md) lists the names and the demonstration users.
 
 [Operations](docs/operations.md) lists every command and what to do when memory runs short.
 

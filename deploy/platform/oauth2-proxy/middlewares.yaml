@@ -1,0 +1,40 @@
+# Requests with no session get the sign-in page of oauth2-proxy, which sends them to Keycloak and back to the same address.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: sign-in
+  namespace: identity
+spec:
+  errors:
+    status: ["401"]
+    service:
+      name: oauth2-proxy
+      port: 80
+    query: /oauth2/sign_in?rd={url}
+    # oauth2-proxy answers with a redirect to Keycloak, which the browser follows only with a redirect status.
+    statusRewrites:
+      "401": 302
+---
+# Any user of the realm reaches the application, after password and code.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: require-user
+  namespace: identity
+spec:
+  forwardAuth:
+    address: http://oauth2-proxy.identity.svc/oauth2/auth
+    trustForwardHeader: true
+    authResponseHeaders: [X-Auth-Request-User, X-Auth-Request-Email]
+---
+# Only the platform group reaches the operations tools.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: require-platform
+  namespace: identity
+spec:
+  forwardAuth:
+    address: http://oauth2-proxy.identity.svc/oauth2/auth?allowed_groups=plataforma
+    trustForwardHeader: true
+    authResponseHeaders: [X-Auth-Request-User, X-Auth-Request-Email]

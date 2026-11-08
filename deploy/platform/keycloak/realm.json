@@ -1,0 +1,152 @@
+{
+  "realm": "plazofiscal",
+  "displayName": "PlazoFiscal",
+  "enabled": true,
+  "sslRequired": "external",
+  "loginWithEmailAllowed": false,
+  "bruteForceProtected": true,
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "requiredActions": [
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": true,
+      "defaultAction": true,
+      "priority": 10
+    }
+  ],
+  "groups": [
+    {
+      "name": "plataforma"
+    },
+    {
+      "name": "contadores"
+    }
+  ],
+  "users": [
+    {
+      "username": "operador",
+      "email": "operador@plazofiscal.localhost",
+      "emailVerified": true,
+      "firstName": "Equipo",
+      "lastName": "Plataforma",
+      "enabled": true,
+      "groups": [
+        "plataforma"
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "operador",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "contador",
+      "email": "contador@plazofiscal.localhost",
+      "emailVerified": true,
+      "firstName": "Firma",
+      "lastName": "Contable",
+      "enabled": true,
+      "groups": [
+        "contadores"
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "contador",
+          "temporary": false
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "oauth2-proxy",
+      "name": "Entry point",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${OAUTH2_PROXY_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://app.plazofiscal.localhost:8000/oauth2/callback",
+        "http://grafana.plazofiscal.localhost:8000/oauth2/callback",
+        "http://kibana.plazofiscal.localhost:8000/oauth2/callback",
+        "http://kubecost.plazofiscal.localhost:8000/oauth2/callback",
+        "http://jaeger.plazofiscal.localhost:8000/oauth2/callback",
+        "http://alertmanager.plazofiscal.localhost:8000/oauth2/callback",
+        "http://prometheus.plazofiscal.localhost:8000/oauth2/callback"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
+      "defaultClientScopes": [
+        "profile",
+        "email"
+      ],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "full.path": "false",
+            "claim.name": "groups",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "grafana",
+      "name": "Grafana",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${GRAFANA_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://grafana.plazofiscal.localhost:8000/login/generic_oauth"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
+      "defaultClientScopes": [
+        "profile",
+        "email"
+      ],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "full.path": "false",
+            "claim.name": "groups",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ]
+}

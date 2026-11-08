@@ -22,3 +22,4 @@ done
 kube apply --kustomize deploy/autoscaling
 
 kube apply --kustomize deploy/monitoring
+kube apply --kustomize deploy/ingress

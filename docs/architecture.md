@@ -12,7 +12,7 @@ This document explains how PlazoFiscal runs on a local Kubernetes cluster of thr
 6. Network isolation
 7. Autoscaling
 8. Observability
-9. Sign-in
+9. Entry point and sign-in
 10. Decisions and alternatives
 11. Assumptions and pending confirmations
 
@@ -49,16 +49,16 @@ Memory limits the design more than any other factor. The reference machine has 8
 | Elasticsearch | 1.0 GiB | Measured |
 | Logstash and Kibana | 1.6 GiB | Measured, Kibana 1.0 and Logstash 0.6 |
 | Prometheus, Alertmanager, Grafana and exporters | 1.0 GiB | Measured |
-| Kubecost | 0.75 GiB | Measured, growing with its cost history |
+| Kubecost | 0.75 GiB | Measured, started only for cost reviews |
 | Jaeger and Fluent Bit | 0.05 GiB | Measured |
-| Keycloak and oauth2-proxy | 0.8 GiB | Estimate |
-| Traefik and KEDA | 0.3 GiB | KEDA measured at 0.2 GiB with its metrics on |
-| Application at maximum replicas | 1.8 GiB | Measured |
-| **Total** | **8.1 GiB** | |
+| Keycloak and oauth2-proxy | 0.6 GiB | Measured |
+| Traefik and KEDA | 0.3 GiB | Measured, Traefik 0.1 and KEDA 0.2 |
+| Application at maximum replicas | 1.1 GiB | Measured with the users service capped |
+| **Total, with Kubecost on** | **7.2 GiB** | |
 
 Measured rows come from `kubectl top` on the reference machine with the application running. Grafana takes about 0.4 GiB and Prometheus about 0.5 GiB, which grows with the data it keeps. Kibana 9.5 needs a Node heap of 1 GiB, because it runs its migrations again on every start and fails with less.
 
-With everything but sign-in running, the nodes use about 6.5 GiB of their 10 GiB, so the cluster has room. The machine is the tighter limit. A desktop with a browser and other programs leaves under 2 GiB free, the machine then swaps, and under that pressure the server node once restarted its components. The platform recovered by itself within a few minutes. Close heavy programs before a demonstration, and stop the cluster when it is not in use. With only the application running, the three nodes use about 2.0 GiB. The users service takes 1.0 GiB of that, because its Java runtime reserves memory when it starts, and the development server of the frontend takes 0.15 GiB.
+With every tool but Kubecost running, the nodes use about 7.2 GiB of their 10 GiB. The machine is the tighter limit, since its desktop takes about 3.8 GiB of the 13.5. When the stack and the desktop together leave under 2 GiB free, the machine swaps, and under that pressure the server node restarted its components twice, recovering by itself within minutes. Three measures keep the platform inside the machine. Kubecost runs only for cost reviews, through `make costs-on`. Elasticsearch, Keycloak and Grafana run on the agents, which leaves the server node for the control plane, Kibana and light pods. The users service caps its Java heap at 192 MiB, since Java 8 otherwise sizes it from the node and held 1.0 GiB, and it now takes about 0.27 GiB. Close heavy programs and virtual machines before a demonstration, and stop the cluster when it is not in use.
 
 The cluster runs three nodes, so a rolling update, a disruption budget and the spread of replicas have a real effect. More nodes would repeat the per node overhead with no gain for the demonstration. A production service would run its nodes across zones, on separate machines.
 
@@ -192,9 +192,23 @@ One request can be followed across the platform. Signing in gives one trace thro
 
 Kubecost reads the same Prometheus, so the cluster runs one metrics server. Version 2.8 is the last line of Kubecost built on Prometheus. Version 3 replaced Prometheus with its own agent and a ClickHouse database, its chart requests 3 GiB for the aggregator alone, and its authors recommend 8 GB for it, which does not fit a node of 3.5 GiB. Kubecost 2.8 runs as one pod with its cost model, aggregator and interface, at about 0.5 GiB, and its forecasting, network costs and bundled Grafana are off.
 
-## 9. Sign-in
+## 9. Entry point and sign-in
 
-Keycloak requires a password and a one-time code. Grafana connects to it directly through OIDC. Kibana and Kubecost have no free SSO, so `oauth2-proxy` protects them at Traefik and sends each person through Keycloak first.
+Traefik is the single entry point. k3d maps port 8000 of the machine to a node port of Traefik, and every tool and the application have a name under `plazofiscal.localhost`, which browsers and the machine resolve to itself. Inside the cluster, CoreDNS rewrites the same names to the Traefik Service, which also listens on port 8000, so the address of Keycloak is the same for a browser and for a pod. Grafana and oauth2-proxy can then validate the tokens Keycloak issues to browsers.
+
+| Name | Serves | Who reaches it |
+|---|---|---|
+| `app.plazofiscal.localhost:8000` | The application | Any user of the realm |
+| `grafana`, `kibana`, `kubecost`, `jaeger`, `alertmanager`, `prometheus` | The operations tools | The group `plataforma` |
+| `auth.plazofiscal.localhost:8000` | Keycloak | Everyone, since it is the sign-in page |
+
+Keycloak holds the realm `plazofiscal`, imported from a file in the repository on its first start, with the groups `plataforma` and `contadores`. Every user must enrol an authenticator app on the first sign-in, and from then on each sign-in asks for the password and a six digit code that changes every 30 seconds. Keycloak keeps its data on a volume, so enrolled authenticators survive a restart. It runs one pod with its file database, which suits one instance and avoids a separate database server.
+
+Every route passes `oauth2-proxy` before reaching its service. Traefik asks oauth2-proxy whether the request carries a valid session, and the tools also require the group `plataforma`. A request with no session receives the sign-in page of oauth2-proxy, which sends the browser to Keycloak and back to the address it asked for. The session cookie covers every name under `plazofiscal.localhost`, so one sign-in opens all the tools for 8 hours.
+
+Behind that gate, Grafana signs people in again through its own OIDC client, with no extra form since Keycloak already has a session, and gives the group `plataforma` the Admin role. Kibana has no single sign-on on its free license, so the entry point passes its local admin after Keycloak has accepted the second factor. The application keeps its own sign-in after the gate, so an accountant signs in twice, once with the second factor and once in the application.
+
+The machine serves plain HTTP on port 8000. Keycloak accepts it from the machine and from private addresses, and the session cookie is not marked secure. A deployment reachable from a network would serve TLS at the same entry point and mark the cookie secure.
 
 ## 10. Decisions and alternatives
 
@@ -203,7 +217,10 @@ Keycloak requires a password and a one-time code. Grafana connects to it directl
 | K3s on three nodes through k3d | A managed cloud cluster, minikube on one node, or kind with Cilium | It costs nothing, anyone with Docker can run it, three nodes give rollouts and disruption budgets a real effect, and k3d caps the memory of each node |
 | The policy controller of K3s | Cilium | It enforces network policies with no extra agent on each node |
 | Traefik | `ingress-nginx` | `ingress-nginx` is retired and receives no fixes |
-| Keycloak | An external identity provider | It works with no outside dependency, at about 0.8 GiB |
+| Names under `plazofiscal.localhost` on port 8000 | A port forward per tool, or TLS with a self-signed certificate | Nothing has to keep running, and no certificate has to be trusted on each machine |
+| oauth2-proxy in front of the application | Single sign-on inside the application | The application stays unchanged, at the cost of a second sign-in |
+| Keycloak with its file database | Keycloak with PostgreSQL through its operator | One instance needs no database server, which saves memory |
+| Keycloak | An external identity provider | It works with no outside dependency, at about 0.6 GiB |
 | Calendar rules through KEDA | A scheduled job that edits the HPA | One declarative object, with no extra permissions |
 | Kubecost 2.8 on the platform Prometheus | Kubecost 3, or OpenCost | Kubecost 3 needs more memory than a node has, and OpenCost lacks the Kubecost interface |
 | Alerts to Slack | A mail catcher inside the cluster, or Discord | Alerts reach a channel people read on their phones, and Alertmanager supports Slack natively |
@@ -219,7 +236,6 @@ Keycloak requires a password and a one-time code. Grafana connects to it directl
 |---|---|---|
 | The machine keeps about 3 GiB free beside the cluster during a demonstration | Each demonstration | Close programs. If that is not enough, remove Logstash from the path and keep Elasticsearch and Kibana |
 | Kubecost 2.8 keeps working on Kubernetes 1.36 | Each upgrade of K3s | Move to OpenCost, its open source base, on the same Prometheus |
-| Kibana can skip its login behind `oauth2-proxy` | Installation | Keep a second login, or read logs in Grafana |
 
 ## Prices in Kubecost
 
