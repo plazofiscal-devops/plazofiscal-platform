@@ -1,6 +1,6 @@
 # Architecture
 
-This document explains how PlazoFiscal runs on a local minikube cluster, why the cluster has its size, and how the main decisions fit the capacity available. The business reasons live in the [business case](business-case.md).
+This document explains how PlazoFiscal runs on a local Kubernetes cluster of three nodes, why the cluster has its size, and how the main decisions fit the capacity available. The business reasons live in the [business case](business-case.md).
 
 ## Contents
 
@@ -20,15 +20,16 @@ This document explains how PlazoFiscal runs on a local minikube cluster, why the
 
 | Term | Meaning |
 |---|---|
-| minikube | A Kubernetes cluster that runs on one machine |
+| K3s | A lightweight Kubernetes distribution |
+| k3d | A tool that runs each K3s node as a Docker container |
 | Rolling update | A release that replaces pods a few at a time |
 | PVC | A request for a persistent disk |
 | HPA | The Kubernetes object that changes replicas by load |
-| OIDC | A sign-in standard, used here for people and for the pipeline |
+| OIDC | A sign-in standard, used here for people |
 
 ## 2. Overview
 
-One minikube cluster holds the application and the operations tools. It uses the Docker driver, one node and Cilium as network plugin. Traefik receives traffic, and sign-in protects each entry point. The platform has no cloud dependency, so any machine with enough memory can run it from a clean clone.
+One K3s cluster holds the application and the operations tools. k3d runs its three nodes as Docker containers on one machine, with one server that runs the control plane and workloads, and two agents that run workloads. K3s enforces network policies with its embedded controller. The Traefik and load balancer bundled with K3s are disabled, so the platform installs its own Traefik in the `ingress` namespace. Traefik receives traffic, and sign-in protects each entry point. The platform has no cloud dependency, so any machine with enough memory can run it from a clean clone.
 
 | Namespace | Holds |
 |---|---|
@@ -40,11 +41,11 @@ One minikube cluster holds the application and the operations tools. It uses the
 
 ## 3. Capacity
 
-Memory limits the design more than any other factor. The reference machine has 8 cores and 13.5 GiB, so the cluster receives 6 CPUs and 10 GiB and leaves the rest to the operating system. Each tool runs one replica with reduced memory.
+Memory limits the design more than any other factor. The reference machine has 8 cores and 13.5 GiB. k3d caps the server node at 3 GiB and each agent at 3.5 GiB, 10 GiB in total, and leaves the rest to the operating system. The nodes share the CPU with no cap. Each tool runs one replica with reduced memory.
 
 | Component | Estimated memory |
 |---|---|
-| Kubernetes, Cilium and metrics server | 1.3 GiB |
+| Kubernetes on three nodes and metrics server | 0.8 GiB |
 | Elasticsearch | 1.5 GiB |
 | Logstash and Kibana | 1.3 GiB |
 | Prometheus, Alertmanager, Grafana and exporters | 1.1 GiB |
@@ -53,13 +54,15 @@ Memory limits the design more than any other factor. The reference machine has 8
 | Keycloak and oauth2-proxy | 0.8 GiB |
 | Traefik and KEDA | 0.3 GiB |
 | Application at maximum replicas | 1.8 GiB |
-| **Total** | **8.9 GiB** |
+| **Total** | **8.4 GiB** |
 
-The cluster runs one node. The default storage of minikube does not handle several nodes well, and one node leaves more memory for the workload. A production service would run several nodes across zones.
+The first row is measured on the reference machine, and the rest are estimates. With only the application running, the three nodes use about 2.0 GiB. The users service takes 1.0 GiB of that, because its Java runtime reserves memory when it starts, and the development server of the frontend takes 0.15 GiB.
+
+The cluster runs three nodes, so a rolling update, a disruption budget and the spread of replicas have a real effect. More nodes would repeat the per node overhead with no gain for the demonstration. A production service would run its nodes across zones, on separate machines.
 
 ## 4. Rolling deployment
 
-Each service sets `maxSurge: 1` and `maxUnavailable: 0`. Kubernetes starts one new pod, waits for its readiness probe, and only then removes an old one, so capacity never falls during a release. A PodDisruptionBudget declares the same limit for planned disruptions, which matters as soon as the platform has more than one node. An undo returns to the previous version with the same mechanism.
+Each service sets `maxSurge: 1` and `maxUnavailable: 0`. Kubernetes starts one new pod, waits for its readiness probe, and only then removes an old one, so capacity never falls during a release. A PodDisruptionBudget declares the same limit for planned disruptions, so draining one of the three nodes moves pods one at a time. An undo returns to the previous version with the same mechanism.
 
 The extra pod needs room in the cluster, so a release and a scaling event compete for the same capacity. Replica limits leave space for that.
 
@@ -67,11 +70,11 @@ Redis stays outside this strategy. It runs one replica with a persistent disk, s
 
 ## 5. Storage
 
-Redis persists its data with an append-only file on a persistent volume, and the activity processor keeps its log on another. minikube provides those volumes from a folder of the node. Data survives pod restarts and `make stop`, and `make down` erases it. A production service would use managed disks and backups.
+Redis persists its data with an append-only file on a persistent volume, and the activity processor keeps its log on another. K3s provides those volumes through its local path provisioner, from a folder of the node where the pod first ran. The volume stays on that node, so Redis and the activity processor always return to it, and they wait if that node is down. Data survives pod restarts and `make stop`, and `make down` erases it. A production service would use managed disks and backups.
 
 ## 6. Network isolation
 
-The `plazofiscal` namespace starts from default deny, for traffic in both directions. Each policy then opens one path, and Cilium enforces them. The default network plugin of minikube would accept the policies without enforcing them, so the cluster starts with Cilium. No service reaches another unless a policy names that path.
+The `plazofiscal` namespace starts from default deny, for traffic in both directions. Each policy then opens one path, and the policy controller embedded in K3s enforces them. A new pod can be refused for a few seconds until the controller registers it, so the services retry their first connection to Redis. No service reaches another unless a policy names that path.
 
 | From | To | Port |
 |---|---|---|
@@ -114,8 +117,8 @@ Keycloak requires a password and a one-time code. Grafana connects to it directl
 
 | Decision | Alternative | Why this one |
 |---|---|---|
-| minikube on one node | A managed cloud cluster | It costs nothing and any member of the team can run it |
-| Cilium | The default network plugin | It enforces network policies |
+| K3s on three nodes through k3d | A managed cloud cluster, minikube on one node, or kind with Cilium | It costs nothing, anyone with Docker can run it, three nodes give rollouts and disruption budgets a real effect, and k3d caps the memory of each node |
+| The policy controller of K3s | Cilium | It enforces network policies with no extra agent on each node |
 | Traefik | `ingress-nginx` | `ingress-nginx` is retired and receives no fixes |
 | Keycloak | An external identity provider | It works with no outside dependency, at about 0.8 GiB |
 | Calendar rules through KEDA | A scheduled job that edits the HPA | One declarative object, with no extra permissions |

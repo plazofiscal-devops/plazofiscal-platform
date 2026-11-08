@@ -2,7 +2,7 @@
 # Deploys the platform on the local cluster. Secrets are generated here and live only in the cluster.
 set -euo pipefail
 
-context=${KUBE_CONTEXT:?set KUBE_CONTEXT to the minikube profile}
+context=${KUBE_CONTEXT:?set KUBE_CONTEXT to the cluster context}
 kube() { kubectl --context "$context" "$@"; }
 
 kube apply --filename deploy/app/namespace.yaml
