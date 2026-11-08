@@ -1,6 +1,6 @@
 # Platform components
 
-Each component installs from a chart or operator pinned to an exact version, with reduced memory settings in this folder. `make platform` runs `install.sh`, which installs the components that exist so far, and `make up` calls it. The monitoring stack installs first, since KEDA and Kubecost declare ServiceMonitors that need its resource types. The installation also generates the Grafana password into a Secret, and turns the Slack webhook file described in [operations](../../docs/operations.md) into another Secret when the file exists. [Architecture](../../docs/architecture.md) gives the memory budget of each one.
+Each component installs from a chart or operator pinned to an exact version, with reduced memory settings in this folder. `make platform` runs `install.sh`, which installs the components that exist so far, and `make up` calls it. The monitoring stack installs first, since KEDA and Kubecost declare ServiceMonitors that need its resource types. The installation turns the Slack webhook file described in [operations](../../docs/operations.md) into another Secret when the file exists. [Architecture](../../docs/architecture.md) gives the memory budget of each one.
 
 | Component | Namespace | Purpose |
 |---|---|---|

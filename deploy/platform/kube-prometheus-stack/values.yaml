@@ -45,8 +45,9 @@ alertmanager:
       limits: { cpu: 200m, memory: 128Mi }
 
 grafana:
-  admin:
-    existingSecret: grafana-admin
+  # Local access only, through make dashboards. Sign-in through Keycloak replaces it.
+  adminUser: admin
+  adminPassword: admin
   defaultDashboardsTimezone: America/Bogota
   resources:
     requests: { cpu: 50m, memory: 256Mi }
