@@ -72,6 +72,8 @@ Redis stays outside this strategy. It runs one replica with a persistent disk, s
 
 Redis persists its data with an append-only file on a persistent volume, and the activity processor keeps its log on another. K3s provides those volumes through its local path provisioner, from a folder of the node where the pod first ran. The volume stays on that node, so Redis and the activity processor always return to it, and they wait if that node is down. Data survives pod restarts and `make stop`, and `make down` erases it. A production service would use managed disks and backups.
 
+The obligations service keeps nothing in its own memory. Each user has a hash in Redis with one field per obligation, and a counter that hands out ids. Those Redis operations are atomic, so any number of replicas share the same data, and a rolling update or a restart loses nothing. The service reports ready only while Redis answers, so a pod that cannot reach it leaves the service without being restarted.
+
 ## 6. Network isolation
 
 The `plazofiscal` namespace starts from default deny, for traffic in both directions. Each policy then opens one path, and the policy controller embedded in K3s enforces them. A new pod can be refused for a few seconds until the controller registers it, so the services retry their first connection to Redis. No service reaches another unless a policy names that path.
