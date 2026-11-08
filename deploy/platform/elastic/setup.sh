@@ -3,9 +3,12 @@
 set -euo pipefail
 
 context=${KUBE_CONTEXT:?set KUBE_CONTEXT to the cluster context}
+# The built-in elastic user, whose password ECK generates, makes the API calls.
+password=$(kubectl --context "$context" --namespace observability get secret logs-es-elastic-user \
+  --output go-template='{{.data.elastic | base64decode}}')
 es() {
   kubectl --context "$context" --namespace observability exec logs-es-default-0 -c elasticsearch -- \
-    curl --silent --show-error --fail --insecure --user admin:admin \
+    curl --silent --show-error --fail --insecure --user "elastic:$password" \
     --header 'Content-Type: application/json' --request PUT "https://localhost:9200/$1" --data "$2"
   echo
 }
@@ -29,7 +32,7 @@ es _component_template/logs@custom '{
 # Kibana data views for the logs of the services and for Kubernetes events.
 kibana() {
   kubectl --context "$context" --namespace observability exec deployment/logs-kb -c kibana -- \
-    curl --silent --show-error --fail --user admin:admin --header 'kbn-xsrf: true' \
+    curl --silent --show-error --fail --user "elastic:$password" --header 'kbn-xsrf: true' \
     --header 'Content-Type: application/json' --request POST "http://localhost:5601/$1" --data "$2" >/dev/null
   echo "$1 done"
 }
