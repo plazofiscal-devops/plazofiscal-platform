@@ -8,11 +8,6 @@ kubectl=(kubectl --context "$context")
 
 "${kubectl[@]}" create namespace observability --dry-run=client --output yaml | "${kubectl[@]}" apply --filename -
 
-if ! "${kubectl[@]}" --namespace observability get secret grafana-admin >/dev/null 2>&1; then
-  "${kubectl[@]}" --namespace observability create secret generic grafana-admin \
-    --from-literal=admin-user=admin --from-literal=admin-password="$(openssl rand -base64 18)"
-fi
-
 alert_values=()
 if [[ -s $webhook_file ]]; then
   "${kubectl[@]}" --namespace observability create secret generic alert-webhook \

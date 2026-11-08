@@ -70,12 +70,7 @@ kubectl --context k3d-plazofiscal --namespace plazofiscal rollout undo deploymen
 | Alertmanager | `http://localhost:9093` |
 | Prometheus | `http://localhost:9091` |
 
-Grafana asks for the user `admin` and the password that the installation generated.
-
-```bash
-kubectl --context k3d-plazofiscal --namespace observability get secret grafana-admin \
-  --output jsonpath='{.data.admin-password}' | base64 --decode
-```
+Grafana asks for the user `admin` with the password `admin`. It answers only on the machine through the port forward, and sign-in through Keycloak replaces this account.
 
 Alerts reach Slack through an incoming webhook of the channel. Create the webhook in Slack, save its address in a file that only the current user can read, and run the installation again.
 
@@ -99,7 +94,7 @@ Kubecost needs about an hour after installation before its interface shows the f
 
 ## 5. Secrets
 
-The repository holds no secret. The deployment generates the signing key of the application and the Grafana password once, and they live only in the cluster. The Slack webhook address lives in a file of the machine outside the repository and in a Secret of the cluster.
+The repository holds no secret. The deployment generates the signing key of the application once, and it lives only in the cluster. The Grafana account `admin` with password `admin` is a known local default, reachable only through the port forward. The Slack webhook address lives in a file of the machine outside the repository and in a Secret of the cluster.
 
 ## 6. Troubleshooting
 
