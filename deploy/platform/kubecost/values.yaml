@@ -1,0 +1,31 @@
+# Kubecost 2.8.7 reading the Prometheus of kube-prometheus-stack, with its own Prometheus and Grafana off.
+global:
+  clusterId: plazofiscal
+  prometheus:
+    enabled: false
+    fqdn: http://monitoring-kube-prometheus-prometheus.observability.svc:9090
+  grafana:
+    enabled: false
+    proxy: false
+
+# The chart checks that this label matches global.clusterId.
+prometheus:
+  server:
+    global:
+      external_labels:
+        cluster_id: plazofiscal
+
+serviceMonitor:
+  enabled: true
+prometheusRule:
+  enabled: true
+
+forecasting:
+  enabled: false
+
+persistentVolume:
+  size: 4Gi
+
+kubecostAggregator:
+  # The free tier keeps 15 days.
+  etlDailyStoreDurationDays: 15

@@ -32,3 +32,8 @@ helm upgrade --install monitoring kube-prometheus-stack \
   --kube-context "$context" --namespace observability \
   --values deploy/platform/kube-prometheus-stack/values.yaml "${alert_values[@]}" \
   --wait --timeout 15m
+
+helm upgrade --install kubecost cost-analyzer \
+  --repo https://kubecost.github.io/cost-analyzer/ --version 2.8.7 \
+  --kube-context "$context" --namespace observability \
+  --values deploy/platform/kubecost/values.yaml --wait --timeout 15m
