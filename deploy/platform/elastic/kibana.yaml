@@ -22,7 +22,7 @@ spec:
         - name: kibana
           env:
             - name: NODE_OPTIONS
-              value: --max-old-space-size=768
+              value: --max-old-space-size=1024
           resources:
-            requests: { cpu: 100m, memory: 768Mi }
-            limits: { cpu: "1", memory: 1280Mi }
+            requests: { cpu: 100m, memory: 1Gi }
+            limits: { cpu: "1", memory: 1536Mi }
