@@ -6,11 +6,6 @@ context=${KUBE_CONTEXT:?set KUBE_CONTEXT to the cluster context}
 webhook_file=${ALERT_WEBHOOK_FILE:-$HOME/.config/plazofiscal/alert-webhook}
 kubectl=(kubectl --context "$context")
 
-helm upgrade --install keda keda \
-  --repo https://kedacore.github.io/charts --version 2.21.0 \
-  --kube-context "$context" --namespace keda --create-namespace \
-  --values deploy/platform/keda/values.yaml --wait --timeout 10m
-
 "${kubectl[@]}" create namespace observability --dry-run=client --output yaml | "${kubectl[@]}" apply --filename -
 
 if ! "${kubectl[@]}" --namespace observability get secret grafana-admin >/dev/null 2>&1; then
@@ -32,6 +27,12 @@ helm upgrade --install monitoring kube-prometheus-stack \
   --kube-context "$context" --namespace observability \
   --values deploy/platform/kube-prometheus-stack/values.yaml "${alert_values[@]}" \
   --wait --timeout 15m
+
+# KEDA installs after the monitoring stack, which provides the ServiceMonitor type it uses.
+helm upgrade --install keda keda \
+  --repo https://kedacore.github.io/charts --version 2.21.0 \
+  --kube-context "$context" --namespace keda --create-namespace \
+  --values deploy/platform/keda/values.yaml --wait --timeout 10m
 
 helm upgrade --install kubecost cost-analyzer \
   --repo https://kubecost.github.io/cost-analyzer/ --version 2.8.7 \
