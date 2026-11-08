@@ -1,0 +1,10 @@
+# Pods resolve every name under plazofiscal.localhost to Traefik, as browsers on the machine resolve it to 127.0.0.1.
+# K3s CoreDNS imports the .override keys of this ConfigMap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  plazofiscal.override: |
+    rewrite name regex (.+)\.plazofiscal\.localhost\.$ traefik.ingress.svc.cluster.local. answer auto

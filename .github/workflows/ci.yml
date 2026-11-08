@@ -26,6 +26,7 @@ jobs:
           kubectl kustomize deploy/load > /dev/null
           kubectl kustomize deploy/monitoring > /dev/null
           kubectl kustomize deploy/platform/elastic > /dev/null
+          kubectl kustomize deploy/ingress > /dev/null
 
   security:
     name: Security

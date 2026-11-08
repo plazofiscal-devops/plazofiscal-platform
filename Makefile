@@ -33,6 +33,7 @@ cluster:
 		k3d cluster create $(CLUSTER) --servers 1 --agents $(AGENTS) --image $(K3S_IMAGE) \
 			--servers-memory $(SERVER_MEMORY) --agents-memory $(AGENT_MEMORY) \
 			--k3s-arg '--disable=traefik@server:0' --k3s-arg '--disable=servicelb@server:0' \
+			--port 8000:30800@loadbalancer \
 			--kubeconfig-switch-context=false --wait; \
 	fi
 	bash deploy/wait-for-nodes.sh $(CLUSTER)

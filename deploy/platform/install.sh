@@ -6,6 +6,14 @@ context=${KUBE_CONTEXT:?set KUBE_CONTEXT to the cluster context}
 webhook_file=${ALERT_WEBHOOK_FILE:-$HOME/.config/plazofiscal/alert-webhook}
 kubectl=(kubectl --context "$context")
 
+helm upgrade --install traefik traefik \
+  --repo https://traefik.github.io/charts --version 42.3.1 \
+  --kube-context "$context" --namespace ingress --create-namespace \
+  --values deploy/platform/traefik/values.yaml --wait --timeout 10m
+if "${kubectl[@]}" apply --filename deploy/platform/traefik/dns.yaml | grep -q -E 'created|configured'; then
+  "${kubectl[@]}" --namespace kube-system rollout restart deployment/coredns
+fi
+
 "${kubectl[@]}" create namespace observability --dry-run=client --output yaml | "${kubectl[@]}" apply --filename -
 
 alert_values=()
