@@ -51,6 +51,8 @@ The risk peaks exactly when the firm is busiest. For that reason, the product ha
 | Obligations, the `todos-api` service | Creating, listing and closing obligations |
 | Activity processor | Recording each change, as a trail of who did what |
 
+An obligation records the client, the tax, the due date and an optional note. The taxes covered are value added tax, withholding at source, income tax and the municipal industry and commerce tax. The main screen lists pending obligations by due date, marks the overdue ones and those due within seven days, filters by tax or by day on a calendar, and counts overdue, due this week and pending obligations. When an accountant marks an obligation as presented, it leaves the list, and the activity processor keeps the record of who closed it and when. The screen is in Spanish, the language of the firms.
+
 ## 6. How demand behaves
 
 | Period | Dates | Expected load | Platform response |

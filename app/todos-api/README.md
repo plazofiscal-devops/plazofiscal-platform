@@ -6,19 +6,28 @@ This Node.js service creates, lists and deletes the obligations of each signed-i
 
 | Method and path | Effect | Answer |
 |---|---|---|
-| `GET /todos` | Lists the items of the user | 200 with an object keyed by id |
-| `POST /todos` | Creates an item from `{"content": "..."}` | 200 with the new item |
-| `DELETE /todos/:taskId` | Deletes an item | 204 |
+| `GET /todos` | Lists the obligations of the user, earliest due date first | 200 with an array |
+| `POST /todos` | Creates an obligation | 200 with the new obligation, or 400 when a field is invalid |
+| `DELETE /todos/:taskId` | Removes an obligation once it is presented | 204 |
 | `GET /health` | Liveness, true while the process runs | 200 |
 | `GET /ready` | Readiness, true while Redis answers | 200, or 503 when Redis is unreachable |
 
 Every path except `/health` and `/ready` needs a token from the sign-in service in the `Authorization: Bearer` header. When Redis fails during a request, the answer is 503 and the process keeps running.
 
-An item looks like this.
+An obligation looks like this.
 
 ```json
-{"content": "Income tax return for client C", "id": 3}
+{"id": 3, "client": "Ferreteria El Tornillo", "tax": "iva", "dueDate": "2026-11-12", "note": "Bimonthly return"}
 ```
+
+| Field | Rule |
+|---|---|
+| `client` | Required, up to 120 characters |
+| `tax` | One of `iva`, `retencion`, `renta` and `ica`, for value added tax, withholding, income tax and the municipal industry and commerce tax |
+| `dueDate` | Required, a calendar date written as `YYYY-MM-DD` |
+| `note` | Optional, up to 500 characters |
+
+The list is sorted when it is read, by due date and then by creation order. Items saved before obligations had a due date appear last.
 
 ## Storage
 
