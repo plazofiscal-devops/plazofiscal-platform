@@ -50,3 +50,8 @@ for release in logs events; do
     --kube-context "$context" --namespace observability \
     --values "deploy/platform/fluent-bit/$release.yaml" --wait --timeout 10m
 done
+
+helm upgrade --install jaeger-collector jaeger \
+  --repo https://jaegertracing.github.io/helm-charts --version 4.16.1 \
+  --kube-context "$context" --namespace observability \
+  --values deploy/platform/jaeger/values.yaml --wait --timeout 10m
