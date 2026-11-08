@@ -61,7 +61,33 @@ kubectl --context k3d-plazofiscal --namespace plazofiscal rollout undo deploymen
 
 ## 4. Dashboards, logs, traces and alerts
 
-`make dashboards` forwards each tool to the machine.
+Every tool and the application open through the entry point on port 8000, after Keycloak asks for a password and a code.
+
+| Name | Address |
+|---|---|
+| Application | `http://app.plazofiscal.localhost:8000` |
+| Grafana | `http://grafana.plazofiscal.localhost:8000` |
+| Kibana | `http://kibana.plazofiscal.localhost:8000` |
+| Kubecost | `http://kubecost.plazofiscal.localhost:8000` |
+| Jaeger | `http://jaeger.plazofiscal.localhost:8000` |
+| Alertmanager | `http://alertmanager.plazofiscal.localhost:8000` |
+| Prometheus | `http://prometheus.plazofiscal.localhost:8000` |
+| Keycloak | `http://auth.plazofiscal.localhost:8000` |
+
+The realm has two demonstration users, each with its name as password. `operador` belongs to the group `plataforma` and opens the tools and the application. `contador` belongs to the group `contadores` and opens only the application, where the accountant then signs in again with the application users, such as `janed`. On the first sign-in, Keycloak shows a QR code. Scan it with an authenticator app such as Google Authenticator, FreeOTP or Aegis, and type the six digit code. Later sign-ins ask for the password and the current code. One sign-in opens every name for 8 hours.
+
+The Keycloak administration console opens at `http://auth.plazofiscal.localhost:8000/admin` with the user `admin` and a generated password.
+
+```bash
+kubectl --context k3d-plazofiscal --namespace identity get secret sso \
+  --output jsonpath='{.data.keycloak-admin-password}' | base64 --decode
+```
+
+To reset the authenticator of a user, open the console, choose the realm `plazofiscal`, then the user, and delete its OTP credential under Credentials. The realm file is imported on the first start only, so a change to `deploy/platform/keycloak/realm.json` needs the realm deleted in the console before Keycloak restarts.
+
+Kubecost stays off in daily use, since the machine has no room for every tool at once. `make costs-on` starts it for a cost review, and `make costs-off` stops it. Its figures come from Prometheus, which keeps 7 days, so it shows the recent cost when it starts.
+
+For operators with cluster credentials, `make dashboards` also forwards each tool to the machine.
 
 | Tool | Address |
 |---|---|
@@ -72,7 +98,7 @@ kubectl --context k3d-plazofiscal --namespace plazofiscal rollout undo deploymen
 | Kibana | `http://localhost:5601` |
 | Jaeger | `http://localhost:16686` |
 
-Grafana and Kibana ask for the user `admin` with the password `admin`. They answer only on the machine through the port forward, and sign-in through Keycloak replaces this account. When a pod of a tool is replaced, its forward stops, so run `make dashboards` again.
+Through the port forward, Kibana asks for the user `admin` with the password `admin`, and Grafana sends the browser to Keycloak. Grafana keeps the local `admin` with password `admin` at `http://localhost:3000/login?disableAutoLogin`. When a pod of a tool is replaced, its forward stops, so run `make dashboards` again.
 
 Kibana opens on the data view PlazoFiscal logs, with one line per log entry and the service in `service.name`. The data view Kubernetes events lists events with their reason, type and object. Logs and events are kept for 3 days.
 
@@ -107,6 +133,9 @@ The repository holds no secret. The deployment generates the signing key of the 
 | Symptom | Cause | Response |
 |---|---|---|
 | Pods in `Pending` | The cluster has no memory left | Run `make status`, then reduce replicas or stop a tool |
+| A name under `plazofiscal.localhost` does not open | The cluster was created before the entry point existed, so k3d maps no port 8000 | Run `k3d cluster edit plazofiscal --port-add 8000:30800@loadbalancer`, or `make down` and `make up` |
+| Keycloak asks for a code the app does not show | The authenticator was enrolled on another phone | Reset the OTP credential of the user in the Keycloak console |
+| The tools answer 403 after Keycloak | The user is not in the group `plataforma` | Sign in as `operador`, or add the user to the group in the console |
 | Many pods restart at once and the forwards stop | The machine ran short of memory and a node restarted its components | Close heavy programs, wait until `make status` shows every pod ready, and run `make dashboards` again |
 | Fluent Bit restarts with `Too many open files` | The machine reached its inotify limit | The configuration polls files, so this only appears with a changed configuration. Raise `fs.inotify.max_user_instances` on the machine |
 | Kibana restarts with `JavaScript heap out of memory` | Its Node heap is too small for the version | Keep `--max-old-space-size` at 1024 or more in `deploy/platform/elastic/kibana.yaml` |
