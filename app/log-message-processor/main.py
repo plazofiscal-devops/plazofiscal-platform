@@ -1,4 +1,6 @@
 import os
+import signal
+import sys
 import time
 import redis
 import requests
@@ -43,6 +45,9 @@ def subscribe(host, port, channel, attempts=30):
 
 
 if __name__ == '__main__':
+    # As the first process of its container, Python would ignore SIGTERM without a handler.
+    signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(0))
+
     redis_host = os.environ['REDIS_HOST']
     redis_port = int(os.environ['REDIS_PORT'])
     redis_channel = os.environ['REDIS_CHANNEL']
