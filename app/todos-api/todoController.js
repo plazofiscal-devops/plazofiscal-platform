@@ -42,6 +42,16 @@ function isDate (value) {
     return !isNaN(date) && date.toISOString().slice(0, 10) === value
 }
 
+// Earliest due date first. Items with no due date go last, and ties keep creation order.
+function byDueDate (a, b) {
+    const left = a.dueDate || '9999-12-31'
+    const right = b.dueDate || '9999-12-31'
+    if (left !== right) {
+        return left < right ? -1 : 1
+    }
+    return a.id - b.id
+}
+
 function unavailable (res, err) {
     console.log('redis error: ' + err.message)
     res.status(503).json({message: 'storage is unavailable, please try again later'})
@@ -61,10 +71,8 @@ class TodoController {
     async list (req, res) {
         try {
             const stored = await this._hgetall(itemsKey(req.user.username)) || {}
-            const items = {}
-            for (const id of Object.keys(stored)) {
-                items[id] = JSON.parse(stored[id])
-            }
+            const items = Object.keys(stored).map(id => JSON.parse(stored[id]))
+            items.sort(byDueDate)
             res.json(items)
         } catch (err) {
             unavailable(res, err)
