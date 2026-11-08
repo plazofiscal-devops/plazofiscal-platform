@@ -41,9 +41,9 @@ deploy:
 	KUBE_CONTEXT=$(CONTEXT) bash deploy/up.sh
 
 status:
-	kubectl --context $(CONTEXT) get nodes
+	kubectl --context $(CONTEXT) get nodes --output wide
 	kubectl --context $(CONTEXT) get pods --all-namespaces
-	kubectl --context $(CONTEXT) top nodes
+	@kubectl --context $(CONTEXT) top nodes 2>/dev/null || echo 'Resource use is not available yet. Try again in a minute.'
 
 forward:
 	kubectl --context $(CONTEXT) --namespace plazofiscal port-forward service/frontend 8080:8080
