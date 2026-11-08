@@ -76,6 +76,16 @@ app.use(bodyParser.json())
 const routes = require('./routes')
 routes(app, {tracer, redisClient, logChannel})
 
-app.listen(port, function () {
+const server = app.listen(port, function () {
   console.log('todo list RESTful API server started on: ' + port)
+})
+
+// Kubernetes sends SIGTERM once the pod is leaving the service. Finish open requests, then exit.
+process.on('SIGTERM', function () {
+  console.log('SIGTERM received, closing the server')
+  server.close(function () {
+    redisClient.quit()
+    process.exit(0)
+  })
+  setTimeout(function () { process.exit(0) }, 15000).unref()
 })
