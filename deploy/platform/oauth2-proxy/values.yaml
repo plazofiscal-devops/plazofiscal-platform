@@ -15,6 +15,9 @@ extraArgs:
   cookie-secure: false
   cookie-expire: 8h
   skip-provider-button: true
+  # Each sign-in keeps its own CSRF cookie, so two tabs signing in at once do not void each other.
+  cookie-csrf-per-request: true
+  cookie-csrf-expire: 5m
   upstream: static://202
 resources:
   requests: { cpu: 10m, memory: 24Mi }
