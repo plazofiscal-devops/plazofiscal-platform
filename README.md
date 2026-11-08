@@ -49,7 +49,7 @@ make forward
 make down
 ```
 
-`make up` creates the cluster, builds the images and deploys the application. The first run takes several minutes while it downloads and builds the images, and later runs take about two to four minutes. `make forward` opens the application on `http://localhost:8080`.
+`make up` creates the cluster, installs the platform components, builds the images and deploys the application. The first run takes several minutes while it downloads and builds the images, and later runs take about two to four minutes. `make forward` opens the application on `http://localhost:8080`.
 
 [Operations](docs/operations.md) lists every command and what to do when memory runs short.
 

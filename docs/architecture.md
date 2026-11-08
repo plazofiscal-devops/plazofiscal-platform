@@ -56,7 +56,7 @@ Memory limits the design more than any other factor. The reference machine has 8
 | Application at maximum replicas | 1.8 GiB |
 | **Total** | **8.4 GiB** |
 
-The first row is measured on the reference machine, and the rest are estimates. With only the application running, the three nodes use about 2.0 GiB. The users service takes 1.0 GiB of that, because its Java runtime reserves memory when it starts, and the development server of the frontend takes 0.15 GiB.
+The first row is measured on the reference machine, KEDA was measured at about 70 MiB, and the rest are estimates. With only the application running, the three nodes use about 2.0 GiB. The users service takes 1.0 GiB of that, because its Java runtime reserves memory when it starts, and the development server of the frontend takes 0.15 GiB.
 
 The cluster runs three nodes, so a rolling update, a disruption budget and the spread of replicas have a real effect. More nodes would repeat the per node overhead with no gain for the demonstration. A production service would run its nodes across zones, on separate machines.
 
@@ -110,13 +110,22 @@ The `plazofiscal` namespace starts from default deny, for traffic in both direct
 
 ## 7. Autoscaling
 
-KEDA creates one HPA per service, combining CPU load at 65 percent with the calendar of the business. The `users-api` service stays fixed, because it uses a seeded database inside each pod, and the activity processor stays at one replica, because it writes to a single disk.
+KEDA creates one HPA for each of the frontend, the sign-in service and the obligations service. Each HPA combines CPU load at 65 percent of the requested CPU with two calendar windows in the America/Bogota time zone, and it follows the trigger that asks for more replicas. The users service stays at one replica, because it uses a seeded database inside each pod, and the activity processor stays at one, because it writes to a single disk.
 
-| Service | Minimum | Maximum |
-|---|---|---|
-| Frontend | 2 | 3 |
-| Sign-in service | 2 | 3 |
-| Obligations service | 2 | 3 |
+| Period | Replicas of each scaled service |
+|---|---|
+| Any time | 2, the minimum |
+| Monthly filing window, 07:00 on day 8 to 20:00 on day 24 | 3 |
+| Income tax season, 07:00 on 1 August to 20:00 on 31 October | 4 |
+| CPU above 65 percent in any period | Up to 4, the maximum |
+
+The calendar raises capacity before a known peak, and CPU covers what the calendar cannot predict. After a window closes or the load falls, KEDA and the HPA wait 5 minutes before removing a replica, so a short dip in traffic does not remove capacity that comes back a minute later.
+
+Both triggers were proven on the three node cluster. Under accountant traffic at about 70 requests per second, the frontend and the obligations service went from 2 to 4 replicas within a minute and the sign-in service within three minutes, with no failed request, and all three returned to 2 about seven minutes after the traffic stopped. A calendar window moved to the next minutes raised the obligations service from 2 to 3 replicas as it opened and returned it to 2 five minutes after it closed. At 92 requests per second, with every scaled service at 4 replicas, no pod waited for room, the nodes used about 2.8 GiB together, and the memory requested by the pods stayed between 13 and 30 percent of each node.
+
+The HPA measures CPU against the CPU each pod requests, so a request below the real idle use keeps a service at its maximum. The sign-in service spends some CPU at rest retrying traces toward a collector, so its request is 100 millicores, close to the 40 millicores per pod measured under load plus that background.
+
+The rules are KEDA ScaledObjects, one short declarative object per service. A scheduled job that edited the HPA would need permissions to change cluster objects and would duplicate the logic of the HPA. The Deployments of the scaled services declare no replica count, so applying them never fights the HPA.
 
 ## 8. Observability
 

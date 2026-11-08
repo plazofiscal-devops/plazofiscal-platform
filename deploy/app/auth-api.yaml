@@ -4,7 +4,6 @@ metadata:
   name: auth-api
   namespace: plazofiscal
 spec:
-  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -60,8 +59,8 @@ spec:
               sleep:
                 seconds: 5
           resources:
-            requests: { cpu: 50m, memory: 32Mi }
-            limits: { cpu: 200m, memory: 128Mi }
+            requests: { cpu: 100m, memory: 32Mi }
+            limits: { cpu: 300m, memory: 128Mi }
 ---
 apiVersion: v1
 kind: Service

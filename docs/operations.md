@@ -27,7 +27,8 @@ This document explains what the platform needs, how to run it day to day, and wh
 
 | Command | Effect |
 |---|---|
-| `make up` | Creates the cluster, builds the images and deploys |
+| `make up` | Creates the cluster, installs the platform, builds the images and deploys |
+| `make platform` | Installs or updates the platform components from their pinned charts |
 | `make status` | Shows nodes, pods and resource use |
 | `make forward` | Opens the application on `http://localhost:8080` until the command stops |
 | `make load` | Runs accountant traffic inside the cluster and fails if any request fails. `RATE` and `DURATION` set 15 requests per second for 3 minutes by default |

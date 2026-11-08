@@ -17,3 +17,6 @@ kube apply --kustomize deploy/app
 for deployment in auth-api users-api todos-api frontend; do
   kube --namespace plazofiscal rollout status "deployment/$deployment" --timeout=10m
 done
+
+# The scaling rules own the replica count of the served services.
+kube apply --kustomize deploy/autoscaling
