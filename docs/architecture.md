@@ -110,13 +110,18 @@ The `plazofiscal` namespace starts from default deny, for traffic in both direct
 
 ## 7. Autoscaling
 
-KEDA creates one HPA per service, combining CPU load at 65 percent with the calendar of the business. The `users-api` service stays fixed, because it uses a seeded database inside each pod, and the activity processor stays at one replica, because it writes to a single disk.
+KEDA creates one HPA for each of the frontend, the sign-in service and the obligations service. Each HPA combines CPU load at 65 percent of the requested CPU with two calendar windows in the America/Bogota time zone, and it follows the trigger that asks for more replicas. The users service stays at one replica, because it uses a seeded database inside each pod, and the activity processor stays at one, because it writes to a single disk.
 
-| Service | Minimum | Maximum |
-|---|---|---|
-| Frontend | 2 | 3 |
-| Sign-in service | 2 | 3 |
-| Obligations service | 2 | 3 |
+| Period | Replicas of each scaled service |
+|---|---|
+| Any time | 2, the minimum |
+| Monthly filing window, 07:00 on day 8 to 20:00 on day 24 | 3 |
+| Income tax season, 07:00 on 1 August to 20:00 on 31 October | 4 |
+| CPU above 65 percent in any period | Up to 4, the maximum |
+
+The calendar raises capacity before a known peak, and CPU covers what the calendar cannot predict. After a window closes or the load falls, KEDA and the HPA wait 5 minutes before removing a replica, so a short dip in traffic does not remove capacity that comes back a minute later.
+
+The rules are KEDA ScaledObjects, one short declarative object per service. A scheduled job that edited the HPA would need permissions to change cluster objects and would duplicate the logic of the HPA. The Deployments of the scaled services declare no replica count, so applying them never fights the HPA.
 
 ## 8. Observability
 

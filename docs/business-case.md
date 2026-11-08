@@ -57,12 +57,12 @@ An obligation records the client, the tax, the due date and an optional note. Th
 
 | Period | Dates | Expected load | Platform response |
 |---|---|---|---|
-| Normal | Days 1 to 7 and 25 to 31 of a month | About 5 requests a second | Minimum replicas |
-| Monthly filing window | Days 8 to 24 | About 15 requests a second | Two replicas from the morning of day 8 |
-| Income tax season | August to October | About 30 requests a second at peak | Maximum replicas from the morning of 1 August |
-| Night | Any day | Near zero | Load based scaling returns to the minimum |
+| Normal | Days 1 to 7 and 25 to 31 of a month | About 5 requests a second | Two replicas of each service |
+| Monthly filing window | Days 8 to 24 | About 15 requests a second | Three replicas from 07:00 on day 8 to 20:00 on day 24 |
+| Income tax season | August to October | About 30 requests a second at peak | Four replicas from 07:00 on 1 August to 20:00 on 31 October |
+| Night | Any day | Near zero | Load based scaling returns to the calendar count |
 
-The calendar raises capacity before the peak, and CPU load reacts to what the calendar cannot predict. Both rules run in the America/Bogota time zone. Capacity stays inside the cluster limit, so replicas have fixed maximums.
+The calendar raises capacity before the peak, and CPU load reacts to what the calendar cannot predict. Both rules run in the America/Bogota time zone. Capacity stays inside the cluster limit, so no service goes beyond four replicas.
 
 ## 7. Service objectives
 
