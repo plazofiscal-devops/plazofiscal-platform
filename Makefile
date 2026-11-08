@@ -8,12 +8,13 @@ TAG ?= local
 SERVICES := auth-api users-api todos-api frontend log-message-processor
 
 .DEFAULT_GOAL := help
-.PHONY: help up cluster images deploy status rollout stop down
+.PHONY: help up cluster images deploy status forward rollout stop down
 
 help:
 	@printf '%s\n' \
 		'make up                              Create the cluster, build the images and deploy' \
 		'make status                          Show nodes, pods and resource use' \
+		'make forward                         Open the application on http://localhost:8080' \
 		'make rollout SERVICE=todos-api TAG=v2  Build one image and start a rolling update' \
 		'make stop                            Pause the cluster and keep its data' \
 		'make down                            Delete the cluster and its data'
@@ -43,6 +44,9 @@ status:
 	kubectl --context $(CONTEXT) get nodes
 	kubectl --context $(CONTEXT) get pods --all-namespaces
 	kubectl --context $(CONTEXT) top nodes
+
+forward:
+	kubectl --context $(CONTEXT) --namespace plazofiscal port-forward service/frontend 8080:8080
 
 rollout:
 	@test -n "$(SERVICE)" || { echo 'Set SERVICE, for example SERVICE=todos-api'; exit 2; }
