@@ -24,6 +24,7 @@ jobs:
           kubectl kustomize deploy/policies > /dev/null
           kubectl kustomize deploy/autoscaling > /dev/null
           kubectl kustomize deploy/load > /dev/null
+          kubectl kustomize deploy/monitoring > /dev/null
 
   security:
     name: Security
