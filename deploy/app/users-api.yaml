@@ -46,6 +46,11 @@ spec:
           livenessProbe:
             httpGet: { path: /health, port: 8083 }
             periodSeconds: 15
+          lifecycle:
+            # Gives the endpoints time to drop the pod before it receives SIGTERM.
+            preStop:
+              sleep:
+                seconds: 5
           resources:
             requests: { cpu: 250m, memory: 768Mi }
             limits: { cpu: 1000m, memory: 1280Mi }
