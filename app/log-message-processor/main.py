@@ -1,4 +1,5 @@
 import os
+import time
 import redis
 import requests
 from py_zipkin.zipkin import zipkin_span, ZipkinAttrs, generate_random_64bit_string
@@ -27,6 +28,20 @@ def run_remaining_filters(ctx):
     return ctx.message
 
 
+def subscribe(host, port, channel, attempts=30):
+    # Redis and the network policies can take a few seconds to accept a new pod.
+    for attempt in range(attempts):
+        try:
+            pubsub = redis.Redis(host=host, port=port, db=0).pubsub()
+            pubsub.subscribe([channel])
+            return pubsub
+        except redis.exceptions.ConnectionError:
+            if attempt == attempts - 1:
+                raise
+            print('waiting for redis at {}:{}'.format(host, port))
+            time.sleep(2)
+
+
 if __name__ == '__main__':
     redis_host = os.environ['REDIS_HOST']
     redis_port = int(os.environ['REDIS_PORT'])
@@ -40,8 +55,7 @@ if __name__ == '__main__':
             headers={'Content-Type': 'application/x-thrift'},
         )
 
-    pubsub = redis.Redis(host=redis_host, port=redis_port, db=0).pubsub()
-    pubsub.subscribe([redis_channel])
+    pubsub = subscribe(redis_host, redis_port, redis_channel)
 
     for item in pubsub.listen():
         ctx = filters.validate(filters.PipelineContext(item))
