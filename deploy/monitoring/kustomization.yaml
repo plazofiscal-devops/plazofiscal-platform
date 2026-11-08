@@ -12,3 +12,9 @@ configMapGenerator:
     options:
       disableNameSuffixHash: true
       labels: { grafana_dashboard: "1" }
+  - name: dashboard-plazofiscal
+    namespace: observability
+    files: [dashboards/plazofiscal.json]
+    options:
+      disableNameSuffixHash: true
+      labels: { grafana_dashboard: "1" }

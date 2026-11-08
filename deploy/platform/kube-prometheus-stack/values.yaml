@@ -99,6 +99,8 @@ grafana:
   grafana.ini:
     server:
       root_url: http://grafana.plazofiscal.localhost:8000
+    dashboards:
+      default_home_dashboard_path: /tmp/dashboards/plazofiscal.json
     auth.generic_oauth:
       enabled: true
       name: Keycloak
