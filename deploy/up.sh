@@ -20,3 +20,5 @@ done
 
 # The scaling rules own the replica count of the served services.
 kube apply --kustomize deploy/autoscaling
+
+kube apply --kustomize deploy/monitoring

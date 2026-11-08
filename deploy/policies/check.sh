@@ -14,6 +14,7 @@ failures=0
 cleanup() {
   kube --namespace plazofiscal delete pod policy-probe --ignore-not-found --wait=false >/dev/null
   kube --namespace default delete pod policy-probe --ignore-not-found --wait=false >/dev/null
+  kube --namespace observability delete pod policy-probe --ignore-not-found --wait=false >/dev/null
   if [ "$created_ingress" = true ]; then
     kube delete namespace ingress --wait=false >/dev/null
   else
@@ -75,7 +76,8 @@ fi
 start_probe plazofiscal
 start_probe default
 start_probe ingress
-for namespace in plazofiscal default ingress; do
+start_probe observability
+for namespace in plazofiscal default ingress observability; do
   kube --namespace "$namespace" wait --for=condition=Ready pod/policy-probe --timeout=120s >/dev/null
 done
 
@@ -127,6 +129,8 @@ expect deny "pod in default -> frontend 8080" default policy-probe "$frontend_ip
 expect deny "pod in default -> todos-api 8082" default policy-probe "$todos_ip" 8082
 expect deny "ingress namespace -> todos-api 8082" ingress policy-probe "$todos_ip" 8082
 expect deny "ingress namespace -> redis 6379" ingress policy-probe "$redis_ip" 6379
+expect deny "observability namespace -> todos-api 8082" observability policy-probe "$todos_ip" 8082
+expect deny "observability namespace -> redis 6379" observability policy-probe "$redis_ip" 6379
 
 echo "Controls, the same destinations answer a pod in default, which has no policies"
 expect allow "pod in default -> internet 1.1.1.1 443" default policy-probe 1.1.1.1 443

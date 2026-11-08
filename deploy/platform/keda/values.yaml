@@ -9,3 +9,12 @@ resources:
   webhooks:
     requests: { cpu: 25m, memory: 32Mi }
     limits: { cpu: 250m, memory: 128Mi }
+
+# Prometheus reads the scaler metrics behind the KEDA dashboard.
+prometheus:
+  operator:
+    enabled: true
+    serviceMonitor: { enabled: true }
+  metricServer:
+    enabled: true
+    serviceMonitor: { enabled: true }

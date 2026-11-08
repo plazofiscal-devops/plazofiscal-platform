@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: plazofiscal
+  namespace: observability
+spec:
+  groups:
+    - name: plazofiscal
+      rules:
+        - alert: PlazoFiscalServiceDown
+          expr: |
+            label_replace(kube_deployment_status_replicas_available{namespace="plazofiscal"}, "workload", "$1", "deployment", "(.+)") == 0
+            or
+            label_replace(kube_statefulset_status_replicas_ready{namespace="plazofiscal"}, "workload", "$1", "statefulset", "(.+)") == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.workload }} has no ready replica, so accountants cannot use it."
+            description: "Check the pods and events of {{ $labels.workload }} in plazofiscal."

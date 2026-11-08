@@ -206,15 +206,10 @@ metadata:
   name: allow-observability
   namespace: plazofiscal
 spec:
+  # Services send traces out. No pod exposes metrics, so the observability namespace has no way in.
   podSelector: {}
   policyTypes:
-    - Ingress
     - Egress
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: observability
   egress:
     - to:
         - namespaceSelector:

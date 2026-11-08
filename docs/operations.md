@@ -7,8 +7,9 @@ This document explains what the platform needs, how to run it day to day, and wh
 1. Requirements
 2. Daily commands
 3. Releasing a service
-4. Secrets
-5. Troubleshooting
+4. Dashboards and alerts
+5. Secrets
+6. Troubleshooting
 
 ## 1. Requirements
 
@@ -31,6 +32,7 @@ This document explains what the platform needs, how to run it day to day, and wh
 | `make platform` | Installs or updates the platform components from their pinned charts |
 | `make status` | Shows nodes, pods and resource use |
 | `make forward` | Opens the application on `http://localhost:8080` until the command stops |
+| `make dashboards` | Opens Grafana, Kubecost, Alertmanager and Prometheus on localhost until the command stops |
 | `make load` | Runs accountant traffic inside the cluster and fails if any request fails. `RATE` and `DURATION` set 15 requests per second for 3 minutes by default |
 | `make check-policies` | Proves every allowed and denied network path and fails on any difference |
 | `make stop` | Pauses the cluster and keeps its data |
@@ -57,11 +59,49 @@ The load prints its summary at the end, and `http_req_failed` must read 0.00 per
 kubectl --context k3d-plazofiscal --namespace plazofiscal rollout undo deployment/todos-api
 ```
 
-## 4. Secrets
+## 4. Dashboards and alerts
 
-The repository holds no secret. The deployment generates the signing key of the application once, and it lives only in the cluster.
+`make dashboards` forwards each tool to the machine.
 
-## 5. Troubleshooting
+| Tool | Address |
+|---|---|
+| Grafana | `http://localhost:3000` |
+| Kubecost | `http://localhost:9090` |
+| Alertmanager | `http://localhost:9093` |
+| Prometheus | `http://localhost:9091` |
+
+Grafana asks for the user `admin` and the password that the installation generated.
+
+```bash
+kubectl --context k3d-plazofiscal --namespace observability get secret grafana-admin \
+  --output jsonpath='{.data.admin-password}' | base64 --decode
+```
+
+Alerts reach Slack through an incoming webhook of the channel. Create the webhook in Slack, save its address in a file that only the current user can read, and run the installation again.
+
+```bash
+mkdir -p ~/.config/plazofiscal
+install -m 600 /dev/null ~/.config/plazofiscal/alert-webhook
+"$EDITOR" ~/.config/plazofiscal/alert-webhook
+make platform
+```
+
+`ALERT_WEBHOOK_FILE` points the installation to another file. Without the file, the installation says so and alerts stay inside Alertmanager.
+
+To prove the whole path, take the users service down and bring it back. The channel receives the firing message about two minutes later and the resolved message about five minutes after the restore.
+
+```bash
+kubectl --context k3d-plazofiscal --namespace plazofiscal scale deployment/users-api --replicas=0
+kubectl --context k3d-plazofiscal --namespace plazofiscal scale deployment/users-api --replicas=1
+```
+
+Kubecost needs about an hour after installation before its interface shows the first full hour of cost.
+
+## 5. Secrets
+
+The repository holds no secret. The deployment generates the signing key of the application and the Grafana password once, and they live only in the cluster. The Slack webhook address lives in a file of the machine outside the repository and in a Secret of the cluster.
+
+## 6. Troubleshooting
 
 | Symptom | Cause | Response |
 |---|---|---|
@@ -69,6 +109,8 @@ The repository holds no secret. The deployment generates the signing key of the 
 | Pods in `OOMKilled` | A tool exceeded its limit | Raise its limit inside the budget of the architecture document |
 | The machine freezes | Too much memory assigned | Run `make stop`, close programs, and try again with a lower `MEMORY` |
 | Traffic between services is blocked | A network policy has no matching path | Run `make check-policies` to see which path fails, then read `deploy/policies/network-policies.yaml` and add the path |
+| A Grafana panel about node memory shows no data | k3d replaces the memory file of each node, so node exporter has no memory figures | Read node memory in the Nodes Overview and Node dashboards, which come from the kubelet |
+| No alert reaches Slack | The webhook file is missing or the address expired | Check that `~/.config/plazofiscal/alert-webhook` exists, then run `make platform`. Alertmanager counts failed sends in `alertmanager_notifications_failed_total` |
 | A service keeps the old image | The tag did not change | Use a new `TAG` on each release |
 | `make up` waits after `make stop` | Docker can give a node a new address on restart, and K3s restarts the node until it settles | Wait, since `make up` continues once every node is ready. If five minutes pass, run `make down` and `make up`, which erases the data |
 | `make load` fails at once with `connection refused` | The network policies have not yet registered the load test pod | The load waits for the frontend before it starts. If it still fails, run it again |

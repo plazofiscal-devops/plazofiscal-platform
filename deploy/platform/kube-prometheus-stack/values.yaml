@@ -1,0 +1,72 @@
+# kube-prometheus-stack 93.1.0 for one local K3s cluster, with requests sized for nodes of 3 to 3.5 GiB.
+
+# K3s runs the controller manager, scheduler, etcd and kube-proxy inside one process with no separate endpoints.
+kubeControllerManager: { enabled: false }
+kubeScheduler: { enabled: false }
+kubeEtcd: { enabled: false }
+kubeProxy: { enabled: false }
+
+defaultRules:
+  rules:
+    etcd: false
+    kubeControllerManager: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    kubeProxy: false
+    windows: false
+
+prometheusOperator:
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+prometheus:
+  prometheusSpec:
+    # Read monitors and rules from every namespace, with no release label required.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    retention: 7d
+    retentionSize: 3GB
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits: { cpu: "1", memory: 1Gi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: { storage: 4Gi }
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { cpu: 200m, memory: 128Mi }
+
+grafana:
+  admin:
+    existingSecret: grafana-admin
+  defaultDashboardsTimezone: America/Bogota
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  sidecar:
+    resources:
+      requests: { cpu: 10m, memory: 64Mi }
+      limits: { cpu: 200m, memory: 192Mi }
+
+kube-state-metrics:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+nodeExporter:
+  operatingSystems:
+    aix: { enabled: false }
+    darwin: { enabled: false }
+
+prometheus-node-exporter:
+  resources:
+    requests: { cpu: 10m, memory: 16Mi }
+    limits: { cpu: 200m, memory: 64Mi }

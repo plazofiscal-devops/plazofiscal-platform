@@ -10,13 +10,14 @@ DURATION ?= 3m
 SERVICES := auth-api users-api todos-api frontend log-message-processor
 
 .DEFAULT_GOAL := help
-.PHONY: help up cluster platform images deploy status forward load check-policies rollout stop down
+.PHONY: help up cluster platform images deploy status forward dashboards load check-policies rollout stop down
 
 help:
 	@printf '%s\n' \
 		'make up                              Create the cluster, install the platform, build the images and deploy' \
 		'make status                          Show nodes, pods and resource use' \
 		'make forward                         Open the application on http://localhost:8080' \
+		'make dashboards                      Open Grafana, Kubecost, Alertmanager and Prometheus on localhost' \
 		'make load RATE=15 DURATION=3m        Run accountant traffic inside the cluster' \
 		'make check-policies                  Prove every allowed and denied network path' \
 		'make rollout SERVICE=todos-api TAG=v2  Build one image and start a rolling update' \
@@ -55,6 +56,9 @@ status:
 
 forward:
 	kubectl --context $(CONTEXT) --namespace plazofiscal port-forward service/frontend 8080:8080
+
+dashboards:
+	KUBE_CONTEXT=$(CONTEXT) bash deploy/dashboards.sh
 
 load:
 	KUBE_CONTEXT=$(CONTEXT) bash deploy/load/run.sh $(RATE) $(DURATION)
