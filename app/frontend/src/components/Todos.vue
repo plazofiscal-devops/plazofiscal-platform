@@ -29,7 +29,7 @@
           <strong>{{ todayDay }}</strong>
         </div>
         <div>
-          <h1 class="heading-greeting">{{ greeting }}.</h1>
+          <h1 class="heading-greeting">{{ greeting }}, {{ firstName }}.</h1>
           <p class="heading-question">¿Qué obligaciones vencen pronto?</p>
         </div>
       </header>
@@ -136,6 +136,9 @@ export default {
     },
     username () {
       return this.$store.state.user.name
+    },
+    firstName () {
+      return this.$store.state.user.firstName || this.$store.state.user.name
     },
     todayMonth () {
       return MONTHS[today().getMonth()]

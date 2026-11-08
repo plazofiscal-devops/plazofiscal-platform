@@ -1,21 +1,21 @@
 <template>
-  <li class="card" :class="'card-' + state.tone">
+  <li class="obligation" :class="'obligation-' + state.tone">
     <button
-      class="card-done"
+      class="obligation-done"
       type="button"
       title="Marcar como presentada"
       aria-label="Marcar como presentada"
       @click="$emit('present')"
     ></button>
-    <div class="card-body">
-      <div class="card-date">{{ dueDate }}</div>
-      <div class="card-client">{{ obligation.client || obligation.content }}</div>
-      <div class="card-detail">
-        <span class="card-tax">{{ tax }}</span>
-        <span v-if="obligation.note" class="card-note">{{ obligation.note }}</span>
+    <div class="obligation-body">
+      <div class="obligation-date">{{ dueDate }}</div>
+      <div class="obligation-client">{{ obligation.client || obligation.content }}</div>
+      <div class="obligation-detail">
+        <span class="obligation-tax">{{ tax }}</span>
+        <span v-if="obligation.note" class="obligation-note">{{ obligation.note }}</span>
       </div>
     </div>
-    <span class="card-chip" :class="'chip-' + state.tone">{{ state.text }}</span>
+    <span class="obligation-chip" :class="'chip-' + state.tone">{{ state.text }}</span>
   </li>
 </template>
 
@@ -40,7 +40,7 @@ export default {
 </script>
 
 <style scoped>
-.card {
+.obligation {
   align-items: center;
   background: var(--pf-card);
   border-left: 4px solid transparent;
@@ -52,19 +52,19 @@ export default {
   padding: 1rem 1.2rem;
 }
 
-.card:hover {
+.obligation:hover {
   background: var(--pf-card-hover);
 }
 
-.card-overdue {
+.obligation-overdue {
   border-left-color: var(--pf-danger);
 }
 
-.card-soon {
+.obligation-soon {
   border-left-color: var(--pf-accent);
 }
 
-.card-done {
+.obligation-done {
   background: transparent;
   border: 2px solid var(--pf-muted);
   border-radius: 50%;
@@ -74,38 +74,38 @@ export default {
   width: 1.6rem;
 }
 
-.card-done:hover {
+.obligation-done:hover {
   background: var(--pf-accent);
   border-color: var(--pf-accent);
 }
 
-.card-body {
+.obligation-body {
   flex-grow: 1;
   min-width: 0;
 }
 
-.card-date {
+.obligation-date {
   color: var(--pf-muted);
   font-size: 0.85rem;
 }
 
-.card-client {
+.obligation-client {
   font-size: 1.1rem;
   font-weight: 600;
   margin: 0.15rem 0;
 }
 
-.card-detail {
+.obligation-detail {
   color: var(--pf-muted);
   font-size: 0.9rem;
 }
 
-.card-note::before {
+.obligation-note::before {
   content: '·';
   margin: 0 0.4rem;
 }
 
-.card-chip {
+.obligation-chip {
   border-radius: 999px;
   flex-shrink: 0;
   font-size: 0.85rem;
