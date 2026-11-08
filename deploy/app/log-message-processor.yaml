@@ -42,7 +42,7 @@ spec:
                 configMapKeyRef: { name: app-config, key: REDIS_CHANNEL }
             - name: ZIPKIN_URL
               valueFrom:
-                configMapKeyRef: { name: app-config, key: ZIPKIN_URL_V1 }
+                configMapKeyRef: { name: app-config, key: ZIPKIN_URL_V2 }
             - name: LOG_PERSIST_PATH
               valueFrom:
                 configMapKeyRef: { name: app-config, key: LOG_PERSIST_PATH }

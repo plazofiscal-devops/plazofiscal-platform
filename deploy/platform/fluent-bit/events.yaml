@@ -1,0 +1,30 @@
+# One Fluent Bit replica that reads Kubernetes events from the API server and sends them to Logstash.
+kind: Deployment
+replicaCount: 1
+rbac:
+  eventsAccess: true
+resources:
+  requests: { cpu: 10m, memory: 24Mi }
+  limits: { cpu: 200m, memory: 96Mi }
+serviceMonitor:
+  enabled: true
+config:
+  inputs: |
+    [INPUT]
+        Name kubernetes_events
+        Tag k8s_events
+  filters: |
+    [FILTER]
+        Name modify
+        Match k8s_events
+        Set source kubernetes-events
+  outputs: |
+    [OUTPUT]
+        Name http
+        Match k8s_events
+        Host logs-ls-http.observability.svc
+        Port 8080
+        Format json
+        Json_Date_Key @timestamp
+        Json_Date_Format iso8601
+        Retry_Limit 5

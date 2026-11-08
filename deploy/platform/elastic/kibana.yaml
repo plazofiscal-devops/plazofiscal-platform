@@ -1,0 +1,28 @@
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: logs
+  namespace: observability
+spec:
+  version: 9.5.6
+  count: 1
+  elasticsearchRef:
+    name: logs
+  http:
+    tls:
+      # Reached only through a port forward until sign-in puts it behind the entry point.
+      selfSignedCertificate:
+        disabled: true
+  config:
+    telemetry.optIn: false
+    telemetry.allowChangingOptInStatus: false
+  podTemplate:
+    spec:
+      containers:
+        - name: kibana
+          env:
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=1024
+          resources:
+            requests: { cpu: 100m, memory: 1Gi }
+            limits: { cpu: "1", memory: 1536Mi }

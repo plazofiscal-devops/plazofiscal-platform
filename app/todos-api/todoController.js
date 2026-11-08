@@ -81,6 +81,7 @@ class TodoController {
 
     async create (req, res) {
         const username = req.user.username
+        const traceId = this._tracer.id
         const {obligation, error} = readObligation(req.body || {})
         if (error) {
             return res.status(400).json({message: error})
@@ -89,7 +90,7 @@ class TodoController {
             const id = await this._incr(nextIdKey(username))
             const todo = Object.assign({id: id}, obligation)
             await this._hset(itemsKey(username), id, JSON.stringify(todo))
-            this._logOperation(OPERATION_CREATE, username, id)
+            this._logOperation(OPERATION_CREATE, username, id, traceId)
             res.json(todo)
         } catch (err) {
             unavailable(res, err)
@@ -98,10 +99,11 @@ class TodoController {
 
     async delete (req, res) {
         const username = req.user.username
+        const traceId = this._tracer.id
         const id = req.params.taskId
         try {
             await this._hdel(itemsKey(username), id)
-            this._logOperation(OPERATION_DELETE, username, id)
+            this._logOperation(OPERATION_DELETE, username, id, traceId)
             res.status(204)
             res.send()
         } catch (err) {
@@ -109,16 +111,14 @@ class TodoController {
         }
     }
 
-    _logOperation (opName, username, todoId) {
-        this._tracer.scoped(() => {
-            const traceId = this._tracer.id;
-            this._redisClient.publish(this._logChannel, JSON.stringify({
-                zipkinSpan: traceId,
-                opName: opName,
-                username: username,
-                todoId: todoId,
-            }))
-        })
+    // The trace id is read before the first await, while the request context is still current.
+    _logOperation (opName, username, todoId, traceId) {
+        this._redisClient.publish(this._logChannel, JSON.stringify({
+            zipkinSpan: traceId,
+            opName: opName,
+            username: username,
+            todoId: todoId,
+        }))
     }
 }
 
