@@ -27,7 +27,11 @@ redisClient.on('error', function (err) {
   console.log('redis error: ' + err.message)
 });
 const port = process.env.TODO_API_PORT || 8082
-const jwtSecret = process.env.JWT_SECRET || "foo"
+const jwtSecret = process.env.JWT_SECRET
+if (!jwtSecret) {
+  console.error('JWT_SECRET is required')
+  process.exit(1)
+}
 
 const app = express()
 
