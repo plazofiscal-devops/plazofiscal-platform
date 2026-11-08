@@ -73,11 +73,13 @@ if __name__ == '__main__':
             continue
 
         span_data = ctx.message['zipkinSpan']
+        # A request that started the trace carries no trace id, since its span id is the trace id.
+        trace_id = span_data['_traceId'].get('value') or span_data['_spanId']
         try:
             with zipkin_span(
                 service_name='log-message-processor',
                 zipkin_attrs=ZipkinAttrs(
-                    trace_id=span_data['_traceId']['value'],
+                    trace_id=trace_id,
                     span_id=generate_random_64bit_string(),
                     parent_span_id=span_data['_spanId'],
                     is_sampled=span_data['_sampled']['value'],
