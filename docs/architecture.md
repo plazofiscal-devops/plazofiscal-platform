@@ -88,6 +88,10 @@ Redis persists its data with an append-only file on a persistent volume, and the
 
 The obligations service keeps nothing in its own memory. Each user has a hash in Redis with one field per obligation, and a counter that hands out ids. Those Redis operations are atomic, so any number of replicas share the same data, and a rolling update or a restart loses nothing. The service reports ready only while Redis answers, so a pod that cannot reach it leaves the service without being restarted.
 
+Persistence was proven on the three node cluster. Obligations created through the API remained identical after the Redis pod was deleted, the pod returned in 12 seconds to the node that holds its volume, and the activity log kept its lines through a restart of the processor and grew afterward.
+
+Redis runs one replica, so its restart interrupts the service. While it is down, the Redis client of the obligations service holds new commands and sends them once Redis is back, so requests wait instead of failing. Redis is checked for readiness every two seconds to keep that wait short. With accountant traffic at 15 requests per second, deleting the Redis pod delayed requests by up to 4.1 seconds and failed 1 of 2031, the request in flight when the connection dropped, which received a 503 answer. A production service would run Redis with a replica and automatic failover.
+
 ## 6. Network isolation
 
 The `plazofiscal` namespace starts from default deny, for traffic in both directions. Each policy then opens one path, and the policy controller embedded in K3s enforces them. A new pod can be refused for a few seconds until the controller registers it, so the services retry their first connection to Redis. No service reaches another unless a policy names that path.
@@ -101,6 +105,8 @@ The `plazofiscal` namespace starts from default deny, for traffic in both direct
 | Load test, only while `make load` runs | Frontend | 8080 |
 | Observability namespace | Each pod | Metrics |
 | Each pod | Trace collector | 9411 |
+
+`make check-policies` proves the table. It opens a connection along every allowed path from the real pods, since a probe pod that carried an application label would join that service and receive real traffic. It then tries the paths the policies leave closed, between services, from an unlabeled pod, from another namespace, from the `ingress` namespace toward anything but the frontend, and from the services toward the internet and the Kubernetes API. A refused connection looks the same whether a policy rejects it or nothing listens on the port, so every denied path targets a port that an allowed path reaches in the same run, and two control paths show that the internet and the Kubernetes API answer a pod in a namespace with no policies. The script lists each of its 28 paths with the expected and the actual result and fails on any difference. When one policy was removed on purpose, it reported exactly the two paths that policy opened.
 
 ## 7. Autoscaling
 

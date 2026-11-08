@@ -90,7 +90,7 @@ The dashboard shows these indicators next to the technical signals, so that a ma
 | A release fails during a filing window | Accountants cannot work | Rolling update keeps old pods until new ones are ready, and an undo returns to the previous version |
 | Load exceeds the cluster | Slow responses | Maximum replicas protect the rest of the platform, and an alert warns the operator |
 | Unauthorized access | Exposure of client data | Sign-in with a second factor, and network isolation between services |
-| Redis loses its pod | Short interruption | Data stays on the persistent volume, and the pod returns on its own |
+| Redis loses its pod | Requests wait about four seconds, and a request in flight can fail | Data stays on the persistent volume, the pod returns on its own, and the obligations service holds commands until Redis is back |
 | Cost grows unnoticed | Margin erodes | Kubecost shows cost per service, and an alert warns about idle capacity |
 
 ## 10. Assumptions
