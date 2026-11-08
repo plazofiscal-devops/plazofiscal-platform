@@ -20,16 +20,16 @@ var (
 	// ErrWrongCredentials indicates that login attempt failed because of incorrect login or password
 	ErrWrongCredentials = echo.NewHTTPError(http.StatusUnauthorized, "username or password is invalid")
 
-	jwtSecret = "myfancysecret"
+	jwtSecret string
 )
 
 func main() {
 	hostport := ":" + os.Getenv("AUTH_API_PORT")
 	userAPIAddress := os.Getenv("USERS_API_ADDRESS")
 
-	envJwtSecret := os.Getenv("JWT_SECRET")
-	if len(envJwtSecret) != 0 {
-		jwtSecret = envJwtSecret
+	jwtSecret = os.Getenv("JWT_SECRET")
+	if len(jwtSecret) == 0 {
+		log.Fatal("JWT_SECRET is required")
 	}
 
 	userService := UserService{

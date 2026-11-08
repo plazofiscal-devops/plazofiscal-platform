@@ -27,7 +27,11 @@ redisClient.on('error', function (err) {
   console.log('redis error: ' + err.message)
 });
 const port = process.env.TODO_API_PORT || 8082
-const jwtSecret = process.env.JWT_SECRET || "foo"
+const jwtSecret = process.env.JWT_SECRET
+if (!jwtSecret) {
+  console.error('JWT_SECRET is required')
+  process.exit(1)
+}
 
 const app = express()
 
@@ -35,6 +39,16 @@ const app = express()
 // This is the real health endpoint used by the Docker HEALTHCHECK.
 app.get('/health', function (req, res) {
   res.status(200).json({ status: 'UP' })
+})
+
+// Readiness depends on Redis, since every request reads or writes there.
+app.get('/ready', function (req, res) {
+  redisClient.ping(function (err) {
+    if (err) {
+      return res.status(503).json({ status: 'DOWN' })
+    }
+    res.status(200).json({ status: 'UP' })
+  })
 })
 
 // tracing
