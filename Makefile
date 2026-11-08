@@ -10,11 +10,11 @@ DURATION ?= 3m
 SERVICES := auth-api users-api todos-api frontend log-message-processor
 
 .DEFAULT_GOAL := help
-.PHONY: help up cluster images deploy status forward load check-policies rollout stop down
+.PHONY: help up cluster platform images deploy status forward load check-policies rollout stop down
 
 help:
 	@printf '%s\n' \
-		'make up                              Create the cluster, build the images and deploy' \
+		'make up                              Create the cluster, install the platform, build the images and deploy' \
 		'make status                          Show nodes, pods and resource use' \
 		'make forward                         Open the application on http://localhost:8080' \
 		'make load RATE=15 DURATION=3m        Run accountant traffic inside the cluster' \
@@ -23,7 +23,7 @@ help:
 		'make stop                            Pause the cluster and keep its data' \
 		'make down                            Delete the cluster and its data'
 
-up: cluster images deploy
+up: cluster platform images deploy
 
 cluster:
 	@if k3d cluster list $(CLUSTER) >/dev/null 2>&1; then \
@@ -35,6 +35,9 @@ cluster:
 			--kubeconfig-switch-context=false --wait; \
 	fi
 	bash deploy/wait-for-nodes.sh $(CLUSTER)
+
+platform:
+	KUBE_CONTEXT=$(CONTEXT) bash deploy/platform/install.sh
 
 images:
 	@for service in $(SERVICES); do \

@@ -1,0 +1,11 @@
+# KEDA 2.21 with requests sized for one local cluster. The chart defaults ask for 100Mi and allow 1000Mi per pod.
+resources:
+  operator:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+  metricServer:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+  webhooks:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 250m, memory: 128Mi }
