@@ -43,7 +43,6 @@ export default {
 .obligation {
   align-items: center;
   background: var(--pf-card);
-  border-left: 4px solid transparent;
   border-radius: 10px;
   display: flex;
   gap: 1rem;
@@ -56,14 +55,6 @@ export default {
   background: var(--pf-card-hover);
 }
 
-.obligation-overdue {
-  border-left-color: var(--pf-danger);
-}
-
-.obligation-soon {
-  border-left-color: var(--pf-accent);
-}
-
 .obligation-done {
   background: transparent;
   border: 2px solid var(--pf-muted);
@@ -72,6 +63,14 @@ export default {
   flex-shrink: 0;
   height: 1.6rem;
   width: 1.6rem;
+}
+
+.obligation-overdue .obligation-done {
+  border-color: var(--pf-danger);
+}
+
+.obligation-soon .obligation-done {
+  border-color: var(--pf-accent);
 }
 
 .obligation-done:hover {
