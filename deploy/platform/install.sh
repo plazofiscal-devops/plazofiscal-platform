@@ -103,4 +103,5 @@ helm upgrade --install oauth2-proxy oauth2-proxy \
   --kube-context "$context" --namespace identity \
   --values deploy/platform/oauth2-proxy/values.yaml --wait --timeout 10m
 "${kubectl[@]}" apply --filename deploy/platform/oauth2-proxy/middlewares.yaml
+"${kubectl[@]}" apply --kustomize deploy/platform/oauth2-proxy/forbidden
 
