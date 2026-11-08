@@ -1,6 +1,9 @@
-PROFILE ?= plazofiscal
-CPUS ?= 6
-MEMORY ?= 10240
+CLUSTER ?= plazofiscal
+CONTEXT := k3d-$(CLUSTER)
+K3S_IMAGE ?= rancher/k3s:v1.36.6-k3s1
+AGENTS ?= 2
+SERVER_MEMORY ?= 3g
+AGENT_MEMORY ?= 3.5g
 TAG ?= local
 SERVICES := auth-api users-api todos-api frontend log-message-processor
 
@@ -18,8 +21,14 @@ help:
 up: cluster images deploy
 
 cluster:
-	minikube start --profile $(PROFILE) --driver=docker --cni=cilium \
-		--cpus=$(CPUS) --memory=$(MEMORY) --addons=metrics-server
+	@if k3d cluster list $(CLUSTER) >/dev/null 2>&1; then \
+		k3d cluster start $(CLUSTER) --wait; \
+	else \
+		k3d cluster create $(CLUSTER) --servers 1 --agents $(AGENTS) --image $(K3S_IMAGE) \
+			--servers-memory $(SERVER_MEMORY) --agents-memory $(AGENT_MEMORY) \
+			--k3s-arg '--disable=traefik@server:0' --k3s-arg '--disable=servicelb@server:0' \
+			--kubeconfig-switch-context=false --wait; \
+	fi
 
 images:
 	@for service in $(SERVICES); do \
@@ -41,7 +50,7 @@ rollout:
 	kubectl --context $(PROFILE) --namespace plazofiscal rollout status deployment/$(SERVICE) --timeout=10m
 
 stop:
-	minikube stop --profile $(PROFILE)
+	k3d cluster stop $(CLUSTER)
 
 down:
-	minikube delete --profile $(PROFILE)
+	k3d cluster delete $(CLUSTER)
