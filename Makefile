@@ -10,7 +10,7 @@ DURATION ?= 3m
 SERVICES := auth-api users-api todos-api frontend log-message-processor
 
 .DEFAULT_GOAL := help
-.PHONY: help up cluster images deploy status forward load rollout stop down
+.PHONY: help up cluster images deploy status forward load check-policies rollout stop down
 
 help:
 	@printf '%s\n' \
@@ -18,6 +18,7 @@ help:
 		'make status                          Show nodes, pods and resource use' \
 		'make forward                         Open the application on http://localhost:8080' \
 		'make load RATE=15 DURATION=3m        Run accountant traffic inside the cluster' \
+		'make check-policies                  Prove every allowed and denied network path' \
 		'make rollout SERVICE=todos-api TAG=v2  Build one image and start a rolling update' \
 		'make stop                            Pause the cluster and keep its data' \
 		'make down                            Delete the cluster and its data'
@@ -54,6 +55,9 @@ forward:
 
 load:
 	KUBE_CONTEXT=$(CONTEXT) bash deploy/load/run.sh $(RATE) $(DURATION)
+
+check-policies:
+	KUBE_CONTEXT=$(CONTEXT) bash deploy/policies/check.sh
 
 rollout:
 	@test -n "$(SERVICE)" || { echo 'Set SERVICE, for example SERVICE=todos-api'; exit 2; }
