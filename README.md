@@ -1,6 +1,6 @@
 # PlazoFiscal Platform
 
-PlazoFiscal helps accounting firms in Colombia track the tax obligations of their clients, so that no deadline passes unnoticed. This repository holds the application, its Kubernetes deployment and the documents of the platform, which runs on a local minikube cluster.
+PlazoFiscal helps accounting firms in Colombia track the tax obligations of their clients, so that no deadline passes unnoticed. This repository holds the application, its Kubernetes deployment and the documents of the platform, which runs on a local Kubernetes cluster of three nodes.
 
 PlazoFiscal is an invented company for an academic exercise. It has no link with any tax authority, and its figures are assumptions.
 
@@ -40,13 +40,16 @@ Makefile             Commands to run the platform
 
 ## Run the platform
 
-You need Docker, minikube, kubectl and at least 12 GiB of free memory on the machine.
+You need Docker, k3d and kubectl. The platform is sized for a machine with 8 cores and 13.5 GiB of memory, and the cluster is capped at 10 GiB. Close browsers and other heavy programs before starting it.
 
 ```bash
 make up
 make status
+make forward
 make down
 ```
+
+`make up` creates the cluster, builds the images and deploys the application. The first run takes several minutes while it downloads and builds the images, and later runs take about two to four minutes. `make forward` opens the application on `http://localhost:8080`.
 
 [Operations](docs/operations.md) lists every command and what to do when memory runs short.
 
