@@ -4,7 +4,7 @@ metadata:
   name: todos-api
   namespace: plazofiscal
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -18,6 +18,13 @@ spec:
       labels:
         app: todos-api
     spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: todos-api
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
