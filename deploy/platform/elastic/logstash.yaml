@@ -26,10 +26,11 @@ spec:
           http { port => 8080 codec => json }
         }
         filter {
-          if [kind] == "event" {
+          if [source] == "kubernetes-events" {
             mutate {
               add_field => { "[data_stream][dataset]" => "kubernetes.events" }
               rename => { "[involvedObject]" => "[kubernetes][object]" "[reason]" => "[event][reason]" "[type]" => "[event][type]" }
+              remove_field => ["source", "[metadata][managedFields]"]
             }
           } else {
             mutate {
@@ -45,6 +46,7 @@ spec:
               match => { "message" => "(?i)\b(?<[log][level]>TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\b" }
               tag_on_failure => []
             }
+            mutate { uppercase => ["[log][level]"] gsub => ["[log][level]", "^WARNING$", "WARN"] }
             # Readiness and liveness probes hit every pod every few seconds and say nothing about accountants.
             if [message] =~ /GET \/(health|ready|healthz)\b/ { drop {} }
           }

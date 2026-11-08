@@ -43,3 +43,10 @@ helm upgrade --install elastic-operator eck-operator \
 "${kubectl[@]}" --namespace observability wait elasticsearch/logs --for=jsonpath='{.status.health}'=green --timeout=10m
 "${kubectl[@]}" --namespace observability wait kibana/logs --for=jsonpath='{.status.health}'=green --timeout=10m
 KUBE_CONTEXT=$context bash deploy/platform/elastic/setup.sh
+
+for release in logs events; do
+  helm upgrade --install "fluent-bit-$release" fluent-bit \
+    --repo https://fluent.github.io/helm-charts --version 0.58.3 \
+    --kube-context "$context" --namespace observability \
+    --values "deploy/platform/fluent-bit/$release.yaml" --wait --timeout 10m
+done
