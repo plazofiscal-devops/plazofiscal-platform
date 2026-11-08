@@ -4,7 +4,6 @@ metadata:
   name: auth-api
   namespace: plazofiscal
 spec:
-  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
