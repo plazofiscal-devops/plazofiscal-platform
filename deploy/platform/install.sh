@@ -3,8 +3,32 @@
 set -euo pipefail
 
 context=${KUBE_CONTEXT:?set KUBE_CONTEXT to the cluster context}
+webhook_file=${ALERT_WEBHOOK_FILE:-$HOME/.config/plazofiscal/alert-webhook}
+kubectl=(kubectl --context "$context")
 
 helm upgrade --install keda keda \
   --repo https://kedacore.github.io/charts --version 2.21.0 \
   --kube-context "$context" --namespace keda --create-namespace \
   --values deploy/platform/keda/values.yaml --wait --timeout 10m
+
+"${kubectl[@]}" create namespace observability --dry-run=client --output yaml | "${kubectl[@]}" apply --filename -
+
+if ! "${kubectl[@]}" --namespace observability get secret grafana-admin >/dev/null 2>&1; then
+  "${kubectl[@]}" --namespace observability create secret generic grafana-admin \
+    --from-literal=admin-user=admin --from-literal=admin-password="$(openssl rand -base64 18)"
+fi
+
+alert_values=()
+if [[ -s $webhook_file ]]; then
+  "${kubectl[@]}" --namespace observability create secret generic alert-webhook \
+    --from-file=url="$webhook_file" --dry-run=client --output yaml | "${kubectl[@]}" apply --filename -
+  alert_values=(--values deploy/platform/kube-prometheus-stack/slack.yaml)
+else
+  echo "No Slack webhook in $webhook_file, so alerts stay inside Alertmanager."
+fi
+
+helm upgrade --install monitoring kube-prometheus-stack \
+  --repo https://prometheus-community.github.io/helm-charts --version 93.1.0 \
+  --kube-context "$context" --namespace observability \
+  --values deploy/platform/kube-prometheus-stack/values.yaml "${alert_values[@]}" \
+  --wait --timeout 15m
