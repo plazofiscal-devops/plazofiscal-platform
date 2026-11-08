@@ -4,6 +4,20 @@
 
     <aside class="sidebar">
       <brand></brand>
+      <h2 class="sidebar-title">Impuestos</h2>
+      <nav class="filters">
+        <button
+          v-for="filter in filters"
+          :key="filter.code"
+          type="button"
+          class="filter"
+          :class="{ 'is-active': taxFilter === filter.code }"
+          @click="taxFilter = filter.code"
+        >
+          <span>{{ filter.label }}</span>
+          <span class="filter-count">{{ filter.count }}</span>
+        </button>
+      </nav>
       <div class="sidebar-user">Sesión de <strong>{{ username }}</strong></div>
       <button type="button" class="pf-button pf-button-quiet sidebar-logout" @click="logout">Cerrar sesión</button>
     </aside>
@@ -42,14 +56,37 @@
       </ul>
       <p v-if="!isProcessing && !obligations.length" class="empty">No hay obligaciones pendientes.</p>
     </main>
+
+    <aside class="aside">
+      <due-calendar :marked="dueDates" :selected="dayFilter" @select="dayFilter = $event"></due-calendar>
+      <div class="aside-actions">
+        <button type="button" class="pf-button pf-button-quiet" :disabled="!dayFilter" @click="dayFilter = null">Ver todas</button>
+      </div>
+      <h2 class="aside-title">Resumen</h2>
+      <div class="summary">
+        <div class="summary-item summary-overdue">
+          <strong>{{ summary.overdue }}</strong>
+          <span>Vencidas</span>
+        </div>
+        <div class="summary-item summary-soon">
+          <strong>{{ summary.soon }}</strong>
+          <span>Esta semana</span>
+        </div>
+        <div class="summary-item">
+          <strong>{{ summary.total }}</strong>
+          <span>Pendientes</span>
+        </div>
+      </div>
+    </aside>
   </div>
 </template>
 
 <script>
 import Brand from '@/components/common/Brand'
+import DueCalendar from '@/components/DueCalendar'
 import ObligationCard from '@/components/ObligationCard'
 import Spinner from '@/components/common/Spinner'
-import { MONTHS, TAXES, today } from '@/obligations'
+import { MONTHS, TAXES, daysUntil, today } from '@/obligations'
 
 function emptyDraft () {
   return { client: '', tax: '', dueDate: '', note: '' }
@@ -57,14 +94,16 @@ function emptyDraft () {
 
 export default {
   name: 'todos',
-  components: { Brand, ObligationCard, Spinner },
+  components: { Brand, DueCalendar, ObligationCard, Spinner },
   data () {
     return {
       isProcessing: false,
       errorMessage: '',
       tasks: [],
       draft: emptyDraft(),
-      taxes: TAXES
+      taxes: TAXES,
+      taxFilter: '',
+      dayFilter: null
     }
   },
   created () {
@@ -72,7 +111,28 @@ export default {
   },
   computed: {
     obligations () {
-      return this.tasks
+      return this.tasks.filter(item =>
+        (!this.taxFilter || item.tax === this.taxFilter) &&
+        (!this.dayFilter || item.dueDate === this.dayFilter))
+    },
+    filters () {
+      const all = { code: '', label: 'Todas', count: this.tasks.length }
+      return [all].concat(TAXES.map(tax => ({
+        code: tax.code,
+        label: tax.label,
+        count: this.tasks.filter(item => item.tax === tax.code).length
+      })))
+    },
+    dueDates () {
+      return this.tasks.filter(item => item.dueDate).map(item => item.dueDate)
+    },
+    summary () {
+      const dated = this.tasks.filter(item => item.dueDate).map(item => daysUntil(item.dueDate))
+      return {
+        overdue: dated.filter(days => days < 0).length,
+        soon: dated.filter(days => days >= 0 && days <= 7).length,
+        total: this.tasks.length
+      }
     },
     username () {
       return this.$store.state.user.name
@@ -154,6 +214,46 @@ export default {
   padding: 2rem 1.5rem;
 }
 
+.sidebar-title,
+.aside-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 2.5rem 0 1rem;
+}
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.filter {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--pf-text);
+  cursor: pointer;
+  display: flex;
+  font-size: 1rem;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+
+.filter:hover {
+  background: var(--pf-card);
+}
+
+.filter.is-active {
+  background: var(--pf-accent);
+  color: var(--pf-accent-text);
+  font-weight: 600;
+}
+
+.filter-count {
+  opacity: 0.7;
+}
+
 .sidebar-user {
   color: var(--pf-muted);
   margin-top: auto;
@@ -221,6 +321,53 @@ export default {
 .obligations {
   margin: 0.5rem 0 0;
   padding: 0;
+}
+
+.aside {
+  background: var(--pf-panel);
+  padding: 2.5rem 1.5rem;
+}
+
+.aside-actions {
+  margin-top: 1.2rem;
+  text-align: center;
+}
+
+.aside-actions .pf-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.summary {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.summary-item {
+  background: var(--pf-card);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  padding: 0.9rem 0.6rem;
+  text-align: center;
+}
+
+.summary-item strong {
+  font-size: 1.6rem;
+}
+
+.summary-item span {
+  color: var(--pf-muted);
+  font-size: 0.85rem;
+}
+
+.summary-overdue strong {
+  color: var(--pf-danger);
+}
+
+.summary-soon strong {
+  color: var(--pf-accent);
 }
 
 .empty {
