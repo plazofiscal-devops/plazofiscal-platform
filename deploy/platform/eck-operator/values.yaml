@@ -1,0 +1,7 @@
+# ECK operator 3.5.0 managing only the observability namespace, with requests sized for one local cluster.
+managedNamespaces: [observability]
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { cpu: 500m, memory: 384Mi }
+telemetry:
+  disabled: true

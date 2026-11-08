@@ -33,3 +33,8 @@ helm upgrade --install kubecost cost-analyzer \
   --repo https://kubecost.github.io/cost-analyzer/ --version 2.8.7 \
   --kube-context "$context" --namespace observability \
   --values deploy/platform/kubecost/values.yaml --wait --timeout 15m
+
+helm upgrade --install elastic-operator eck-operator \
+  --repo https://helm.elastic.co --version 3.5.0 \
+  --kube-context "$context" --namespace elastic-system --create-namespace \
+  --values deploy/platform/eck-operator/values.yaml --wait --timeout 10m
