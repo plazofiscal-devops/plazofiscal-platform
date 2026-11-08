@@ -4,6 +4,7 @@ import sys
 import time
 import redis
 import requests
+from py_zipkin.encoding import Encoding
 from py_zipkin.zipkin import zipkin_span, ZipkinAttrs, generate_random_64bit_string
 
 import filters
@@ -57,7 +58,7 @@ if __name__ == '__main__':
         requests.post(
             zipkin_url,
             data=encoded_span,
-            headers={'Content-Type': 'application/x-thrift'},
+            headers={'Content-Type': 'application/json'},
         )
 
     pubsub = subscribe(redis_host, redis_port, redis_channel)
@@ -84,6 +85,7 @@ if __name__ == '__main__':
                 ),
                 span_name='save_log',
                 transport_handler=http_transport,
+                encoding=Encoding.V2_JSON,
                 sample_rate=100
             ):
                 run_remaining_filters(ctx)

@@ -17,7 +17,6 @@ data:
   TODOS_API_ADDRESS: "http://todos-api:8082"
   USERS_API_ADDRESS: "http://users-api:8083"
 
-  ZIPKIN_URL_V1: "http://jaeger-collector.observability:9411/api/v1/spans"
   ZIPKIN_URL_V2: "http://jaeger-collector.observability:9411/api/v2/spans"
   SPRING_ZIPKIN_BASE_URL: "http://jaeger-collector.observability:9411"
 
