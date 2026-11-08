@@ -39,6 +39,10 @@ One K3s cluster holds the application and the operations tools. k3d runs its thr
 | `observability` | Prometheus, Alertmanager, Grafana, Jaeger, ELK and Kubecost |
 | `keda` | Scaling by date and load |
 
+![PlazoFiscal on k3d, the whole platform with the seven points of the course numbered](diagrams/platform-overview.drawio.png)
+
+The numbers mark the points of the course. 1 is the rolling deployment of the services, 2 the network policies and the Redis volume, 3 scaling by load and calendar, 4 costs, 5 logs with ELK, 6 sign-in with a second factor, and 7 the dashboard with the five signals. Green arrows are requests, blue arrows telemetry, orange arrows alerts and the dashed purple arrow scaling.
+
 ## 3. Capacity
 
 Memory limits the design more than any other factor. The reference machine has 8 cores and 13.5 GiB. k3d caps the server node at 3 GiB and each agent at 3.5 GiB, 10 GiB in total, and leaves the rest to the operating system. The nodes share the CPU with no cap. Each tool runs one replica with reduced memory.
@@ -141,6 +145,8 @@ The `observability` namespace holds the tools that watch the platform. The busin
 | Events | Fluent Bit reading the Kubernetes API, processed by Logstash | Elasticsearch, read in Kibana |
 | Alerts | Prometheus rules | Alertmanager, which posts to Slack |
 
+![Five signals from the services reach one Grafana dashboard](diagrams/observability-signals.drawio.png)
+
 ### Metrics
 
 The kube-prometheus-stack chart installs the Prometheus operator, Prometheus, Alertmanager, Grafana, kube-state-metrics and node exporter. Prometheus reads the kubelet and its container metrics, the Kubernetes API, CoreDNS, kube-state-metrics, node exporter, KEDA and Kubecost. It keeps 7 days on a 4 GiB volume, capped at 3 GB, which covers a week of cost history. K3s runs the controller manager, the scheduler, etcd and kube-proxy inside one process with no separate metrics endpoints, so their scrapes, rules and dashboards are off.
@@ -219,6 +225,10 @@ Traefik is the single entry point. k3d maps port 8000 of the machine to a node p
 | `auth.plazofiscal.localhost:8000` | Keycloak | Everyone, since it is the sign-in page |
 
 Keycloak holds the realm `plazofiscal`, imported from a file in the repository on its first start, with the groups `plataforma` and `contadores`. Every user must enrol an authenticator app on the first sign-in, and from then on each sign-in asks for the password and a six digit code that changes every 30 seconds. Keycloak keeps its data on a volume, so enrolled authenticators survive a restart. It runs one pod with its file database, which suits one instance and avoids a separate database server.
+
+![Every route passes Keycloak with a password and an authenticator code](diagrams/sign-in-flow.drawio.png)
+
+The numbered steps follow one request. The browser asks Traefik for a tool (1), and Traefik asks oauth2-proxy whether the request carries a session (2). With no session, oauth2-proxy sends the browser to Keycloak (3), which asks for the password (4) and the code of the authenticator app (5), then returns to oauth2-proxy, which sets the session cookie (6). From then on Traefik lets the request through (7), or shows the refusal page when the user is outside the group of the tool (8).
 
 Every route passes `oauth2-proxy` before reaching its service. Traefik asks oauth2-proxy whether the request carries a valid session, and the tools also require the group `plataforma`. A user outside that group gets a page in Spanish that explains it and offers to sign out and sign in as someone else. A request with no session receives the sign-in page of oauth2-proxy, which sends the browser to Keycloak and back to the address it asked for. The session cookie covers every name under `plazofiscal.localhost`, so one sign-in opens all the tools for 8 hours. Only page navigations are sent to Keycloak. Other requests with no session, such as the favicon a browser asks for while the sign-in page is open, get a plain refusal, since each redirect would start a second sign-in and void the first. Each sign-in also keeps its own protection cookie, so two tabs can sign in at once.
 

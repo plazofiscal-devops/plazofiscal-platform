@@ -29,7 +29,7 @@ deploy/policies/     Network policies
 deploy/autoscaling/  Scaling rules by load and date
 deploy/monitoring/   Alert rules and dashboards of PlazoFiscal
 deploy/platform/     Observability, costs and sign-in
-docs/                Business case, architecture and operations
+docs/                Business case, architecture, operations, evidence and diagrams
 Makefile             Commands to run the platform
 ```
 
@@ -40,6 +40,7 @@ Makefile             Commands to run the platform
 | [Business case](docs/business-case.md) | The company, its customers, its calendar and its objectives |
 | [Architecture](docs/architecture.md) | Components, capacity and the main decisions |
 | [Operations](docs/operations.md) | Requirements, daily commands and troubleshooting |
+| [Evidence](docs/evidence.md) | Each point of the course with its proof, the command that repeats it and the screenshots |
 
 ## Run the platform
 
