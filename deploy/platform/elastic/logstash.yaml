@@ -43,9 +43,23 @@ spec:
             } else if [kubernetes][container_name] {
               mutate { copy => { "[kubernetes][container_name]" => "[service][name]" } }
             }
-            grok {
-              match => { "message" => "(?i)\b(?<[log][level]>TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\b" }
-              tag_on_failure => []
+            # JSON request logs carry their level in the HTTP status, plain lines in a level word.
+            if [app][method] and [app][status] {
+              if [app][status] >= 500 {
+                mutate { add_field => { "[log][level]" => "ERROR" } }
+              } else if [app][status] >= 400 {
+                mutate { add_field => { "[log][level]" => "WARN" } }
+              } else {
+                mutate { add_field => { "[log][level]" => "INFO" } }
+              }
+              mutate { replace => { "message" => "%{[app][method]} %{[app][uri]} %{[app][status]} %{[app][latency_human]}" } }
+            } else if [app][level] {
+              mutate { copy => { "[app][level]" => "[log][level]" } }
+            } else {
+              grok {
+                match => { "message" => "(?i)\b(?<[log][level]>TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\b" }
+                tag_on_failure => []
+              }
             }
             mutate { uppercase => ["[log][level]"] gsub => ["[log][level]", "^WARNING$", "WARN"] }
             # Readiness and liveness probes hit every pod every few seconds and say nothing about accountants.
