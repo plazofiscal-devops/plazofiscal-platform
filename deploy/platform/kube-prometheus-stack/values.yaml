@@ -45,6 +45,14 @@ alertmanager:
       limits: { cpu: 200m, memory: 128Mi }
 
 grafana:
+  # The server node holds the control plane and Kibana, so Grafana runs on an agent.
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: DoesNotExist
   # Local access only, through make dashboards. Sign-in through Keycloak replaces it.
   adminUser: admin
   adminPassword: admin
