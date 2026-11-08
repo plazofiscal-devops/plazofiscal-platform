@@ -106,8 +106,9 @@ The `plazofiscal` namespace starts from default deny, for traffic in both direct
 | Obligations service and activity processor | Redis | 6379 |
 | Load test, only while `make load` runs | Frontend | 8080 |
 | Each pod | Trace collector | 9411 |
+| Prometheus | Obligations service, for `/metrics` | 8082 |
 
-`make check-policies` proves the table. It opens a connection along every allowed path from the real pods, since a probe pod that carried an application label would join that service and receive real traffic. It then tries the paths the policies leave closed, between services, from an unlabeled pod, from another namespace, from the `ingress` namespace toward anything but the frontend, from the `observability` namespace toward the services, and from the services toward the internet and the Kubernetes API. A refused connection looks the same whether a policy rejects it or nothing listens on the port, so every denied path targets a port that an allowed path reaches in the same run, and two control paths show that the internet and the Kubernetes API answer a pod in a namespace with no policies. The script lists each of its 30 paths with the expected and the actual result and fails on any difference. When one policy was removed on purpose, it reported exactly the two paths that policy opened.
+`make check-policies` proves the table. It opens a connection along every allowed path from the real pods, since a probe pod that carried an application label would join that service and receive real traffic. It then tries the paths the policies leave closed, between services, from an unlabeled pod, from another namespace, from the `ingress` namespace toward anything but the frontend, from an unlabeled pod of the `observability` namespace toward the services, and from the services toward the internet and the Kubernetes API. A refused connection looks the same whether a policy rejects it or nothing listens on the port, so every denied path targets a port that an allowed path reaches in the same run, and two control paths show that the internet and the Kubernetes API answer a pod in a namespace with no policies. The script lists each of its 31 paths with the expected and the actual result and fails on any difference. When one policy was removed on purpose, it reported exactly the two paths that policy opened.
 
 ## 7. Autoscaling
 
@@ -159,8 +160,23 @@ Grafana loads its dashboards from ConfigMaps, so each one lives in the repositor
 | Alerts | Alertmanager Overview, and the alert rules in Grafana Alerting |
 | Platform | Prometheus, Grafana, kubelet, CoreDNS and the Kubernetes API |
 | Costs | The Kubecost interface |
+| Business | PlazoFiscal, the home dashboard |
 
-Business indicators and the request rate, errors and latency of each service need the services to publish metrics, and the business dashboard adds them.
+### Business dashboard
+
+The PlazoFiscal dashboard opens first in Grafana and joins the five signals with the indicators of the business case.
+
+| Row | Panels | Source |
+|---|---|---|
+| Business | Obligations registered in the last 24 hours and by tax, obligations overdue and due in the next 7 days, sign-ins by result, and whether a filing window is open | Metrics of the obligations service, sign-in logs in Elasticsearch, and KEDA |
+| Service health | Requests at the entry point by status, requests and p95 latency of the obligations service, replicas against the maximum, CPU by service | Traefik, the obligations service, kube-state-metrics and the kubelet |
+| Alerts | Alerts firing or pending, except the always-on `Watchdog` | Prometheus |
+| Logs | Service logs | Elasticsearch |
+| Traces | Recent traces of obligations and of sign-ins, each one opening inside Grafana | Jaeger |
+| Kubernetes events | Scaling, rollouts and failed probes | Elasticsearch |
+
+The obligations service publishes its metrics at `/metrics`. A counter tracks obligations registered by tax, a histogram tracks the duration of each request by route and status, and a gauge counts the stored obligations by due status and tax, read from Redis each time Prometheus scrapes, which suits the size of the pilot. Every replica reports the same gauge, so the dashboard takes the maximum. Sign-ins come from the request logs of the sign-in service, which Logstash already parses, so that service needs no change. A network policy admits only the Prometheus pods into the obligations service, on its own port.
+
 
 ### Alerts
 
@@ -184,7 +200,7 @@ Fluent Bit replaces two tools, a log shipper and a dedicated event exporter. The
 
 ### Traces
 
-Every service reports spans in Zipkin format. The frontend reports the browser side of each call through its development server, the sign-in, obligations and users services report their HTTP calls, and the activity processor continues the trace of the obligation that produced its message, since the obligations service puts the trace id in the message it publishes to Redis. Jaeger 2.22 receives Zipkin on port 9411 and OTLP on 4317 and 4318, and keeps the last 20,000 traces in memory. A restart of Jaeger clears them, which suits a demonstration and adds no load to Elasticsearch.
+Every service reports spans in Zipkin format. The frontend reports the browser side of each call through its development server, the sign-in, obligations and users services report their HTTP calls, and the activity processor continues the trace of the obligation that produced its message, since the obligations service puts the trace id in the message it publishes to Redis. Jaeger 2.19 receives Zipkin on port 9411 and OTLP on 4317 and 4318, and keeps the last 20,000 traces in memory. A restart of Jaeger clears them, which suits a demonstration and adds no load to Elasticsearch.
 
 One request can be followed across the platform. Signing in gives one trace through the frontend, the sign-in service and the users service. Creating an obligation gives one trace through the frontend, the obligations service and the activity processor, and the line the processor logs carries the same trace id, so the trace in Jaeger leads to the logs in Kibana.
 
@@ -227,6 +243,7 @@ The machine serves plain HTTP on port 8000. Keycloak accepts it from the machine
 | ECK for Elasticsearch, Logstash and Kibana | The archived Elastic Helm charts, or plain manifests | The operator handles certificates, users and upgrades, and its charts are current |
 | Fluent Bit for logs and events | Filebeat with a separate event exporter | One small tool covers both signals, and the usual event exporter is unmaintained |
 | Logstash in the log path | Fluent Bit straight to Elasticsearch | Parsing and filtering live in one place, at about 0.75 GiB |
+| Jaeger 2.19 | Jaeger 2.22 | Jaeger 2.20 removed the query endpoints that the Grafana Jaeger data source calls, so 2.19 keeps traces inside the dashboard |
 | Jaeger with memory storage | Jaeger on Elasticsearch | Traces of a demonstration need no history, and Elasticsearch keeps its memory for logs |
 | One public repository | Several repositories | One change can touch code, manifests and documents |
 

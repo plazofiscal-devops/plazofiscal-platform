@@ -10,5 +10,5 @@ Each component installs from a chart or operator pinned to an exact version, wit
 | Kubecost 2.8.7 | `observability` | Cost by namespace and service, from the same Prometheus |
 | ECK operator 3.5.0 | `elastic-system` | Elasticsearch, Logstash and Kibana 9.5.6 in `observability`, from `elastic/` |
 | Fluent Bit 5.1.3 | `observability` | Container logs from each node, and Kubernetes events from one replica |
-| Jaeger 2.22.0 | `observability` | Traces, kept in memory |
+| Jaeger 2.19.0 | `observability` | Traces, kept in memory, on the last line that serves the Grafana Jaeger data source |
 | Keycloak and oauth2-proxy | `identity` | Sign-in with a second factor |

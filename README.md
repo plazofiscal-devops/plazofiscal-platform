@@ -15,6 +15,7 @@ PlazoFiscal is an invented company for an academic exercise. It has no link with
 | Cost visibility | Kubecost, by namespace and service, reading the platform Prometheus |
 | Centralized logs and events | Fluent Bit, Logstash, Elasticsearch and Kibana |
 | Metrics and alerts | Prometheus and Grafana dashboards for the machine, the cluster, the network and autoscaling, with alerts posted to Slack |
+| Business dashboard | One Grafana dashboard with obligations at risk, registrations by tax, sign-ins, the filing window, service health, alerts, logs, traces and events |
 | Traces | Jaeger, following one request through the frontend and the services |
 | Strong sign-in | Keycloak with a required authenticator code in front of every tool and the application |
 | One command operation | `make up` builds and deploys everything, and `make down` removes it |
