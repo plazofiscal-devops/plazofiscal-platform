@@ -148,6 +148,17 @@ spec:
       ports:
         - protocol: TCP
           port: 8082
+    # Prometheus reads /metrics. Other pods of the observability namespace stay out.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 8082
   egress:
     - to:
         - podSelector:
