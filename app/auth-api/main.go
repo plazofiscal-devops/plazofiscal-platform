@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -69,8 +72,22 @@ func main() {
 
 	e.POST("/login", getLoginHandler(userService))
 
-	// Start server
-	e.Logger.Fatal(e.Start(hostport))
+	go func() {
+		if err := e.Start(hostport); err != nil && err != http.ErrServerClosed {
+			e.Logger.Fatal(err)
+		}
+	}()
+
+	// Kubernetes sends SIGTERM once the pod is leaving the service. Finish open requests, then exit.
+	stop, cancelSignal := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
+	defer cancelSignal()
+	<-stop.Done()
+	e.Logger.Info("SIGTERM received, closing the server")
+	shutdown, cancelShutdown := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancelShutdown()
+	if err := e.Shutdown(shutdown); err != nil {
+		e.Logger.Error(err)
+	}
 }
 
 type LoginRequest struct {

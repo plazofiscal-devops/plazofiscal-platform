@@ -64,6 +64,20 @@ The cluster runs three nodes, so a rolling update, a disruption budget and the s
 
 Each service sets `maxSurge: 1` and `maxUnavailable: 0`. Kubernetes starts one new pod, waits for its readiness probe, and only then removes an old one, so capacity never falls during a release. A PodDisruptionBudget declares the same limit for planned disruptions, so draining one of the three nodes moves pods one at a time. An undo returns to the previous version with the same mechanism.
 
+The frontend, the sign-in service and the obligations service run two replicas each, spread over different nodes, so one pod keeps serving while the other is replaced and the loss of a node does not stop the service. The users service runs one replica, since its database is seeded inside each pod.
+
+Removing an old pod follows three steps, so no request in flight is lost.
+
+| Step | What happens | Why |
+|---|---|---|
+| 1 | The pod leaves the endpoints of its service, and a `preStop` hook waits 5 seconds | Every node stops routing new connections to it before it stops |
+| 2 | The process receives SIGTERM, stops accepting connections and finishes open requests | Requests already received get their answer |
+| 3 | The frontend answers with `Connection: close` while it shuts down, and the process exits when its connections end, or after 15 seconds | Clients that keep connections open reconnect to another pod |
+
+Before this sequence existed, the services ignored SIGTERM, each old pod lived for the full grace period of 30 seconds, and a release of the frontend under load failed 6 of 4151 requests. With it, a pod stops in about one second, and releasing each of the four services under load failed none.
+
+A release is proven with `make load`, which runs accountant traffic inside the cluster while `make rollout` replaces a service. The load signs in, lists obligations and creates and closes them at 15 requests per second, the rate of the monthly filing window, and it fails if a single request fails.
+
 The extra pod needs room in the cluster, so a release and a scaling event compete for the same capacity. Replica limits leave space for that.
 
 Redis stays outside this strategy. It runs one replica with a persistent disk, so a new version replaces it with a short interruption.
@@ -84,6 +98,7 @@ The `plazofiscal` namespace starts from default deny, for traffic in both direct
 | Frontend | Sign-in service and obligations service | 8081, 8082 |
 | Sign-in service | Users service | 8083 |
 | Obligations service and activity processor | Redis | 6379 |
+| Load test, only while `make load` runs | Frontend | 8080 |
 | Observability namespace | Each pod | Metrics |
 | Each pod | Trace collector | 9411 |
 
@@ -93,9 +108,9 @@ KEDA creates one HPA per service, combining CPU load at 65 percent with the cale
 
 | Service | Minimum | Maximum |
 |---|---|---|
-| Frontend | 1 | 3 |
-| Sign-in service | 1 | 3 |
-| Obligations service | 1 | 3 |
+| Frontend | 2 | 3 |
+| Sign-in service | 2 | 3 |
+| Obligations service | 2 | 3 |
 
 ## 8. Observability
 

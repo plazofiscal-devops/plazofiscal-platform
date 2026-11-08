@@ -4,7 +4,7 @@ metadata:
   name: frontend
   namespace: plazofiscal
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -18,6 +18,13 @@ spec:
       labels:
         app: frontend
     spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: frontend
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -47,6 +54,11 @@ spec:
             httpGet: { path: /, port: 8080 }
             initialDelaySeconds: 15
             periodSeconds: 15
+          lifecycle:
+            # Gives the endpoints time to drop the pod before it receives SIGTERM.
+            preStop:
+              sleep:
+                seconds: 5
           resources:
             requests: { cpu: 100m, memory: 128Mi }
             limits: { cpu: 500m, memory: 512Mi }

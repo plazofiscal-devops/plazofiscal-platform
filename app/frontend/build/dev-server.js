@@ -21,6 +21,15 @@ var autoOpenBrowser = !!config.dev.autoOpenBrowser
 var proxyTable = config.dev.proxyTable
 
 var app = express()
+
+// While shutting down, ask clients to reconnect so kept-alive connections move to other pods.
+var shuttingDown = false
+app.use(function (req, res, next) {
+  if (shuttingDown) {
+    res.set('Connection', 'close')
+  }
+  next()
+})
 var compiler = webpack(webpackConfig)
 
 var devMiddleware = require('webpack-dev-middleware')(compiler, {
@@ -81,6 +90,16 @@ devMiddleware.waitUntilValid(() => {
 })
 
 var server = app.listen(port)
+
+// Kubernetes sends SIGTERM once the pod is leaving the service. Finish open requests, then exit.
+process.on('SIGTERM', function () {
+  console.log('> SIGTERM received, closing the server')
+  shuttingDown = true
+  server.close(function () {
+    process.exit(0)
+  })
+  setTimeout(function () { process.exit(0) }, 15000).unref()
+})
 
 module.exports = {
   ready: readyPromise,

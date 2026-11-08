@@ -4,7 +4,7 @@ metadata:
   name: auth-api
   namespace: plazofiscal
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -18,6 +18,13 @@ spec:
       labels:
         app: auth-api
     spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: auth-api
       securityContext:
         runAsNonRoot: true
         runAsUser: 100
@@ -47,6 +54,11 @@ spec:
             httpGet: { path: /version, port: 8081 }
             initialDelaySeconds: 10
             periodSeconds: 15
+          lifecycle:
+            # Gives the endpoints time to drop the pod before it receives SIGTERM.
+            preStop:
+              sleep:
+                seconds: 5
           resources:
             requests: { cpu: 50m, memory: 32Mi }
             limits: { cpu: 200m, memory: 128Mi }
