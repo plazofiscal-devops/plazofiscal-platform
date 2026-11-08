@@ -13,6 +13,35 @@ function nextIdKey (username) {
     return 'todos:' + username + ':next-id'
 }
 
+const TAXES = ['iva', 'retencion', 'renta', 'ica']
+
+// Returns the obligation fields from a request body, or an error message.
+function readObligation (body) {
+    const client = typeof body.client === 'string' ? body.client.trim() : ''
+    const note = typeof body.note === 'string' ? body.note.trim() : ''
+    if (!client || client.length > 120) {
+        return {error: 'client is required, up to 120 characters'}
+    }
+    if (TAXES.indexOf(body.tax) === -1) {
+        return {error: 'tax must be one of ' + TAXES.join(', ')}
+    }
+    if (!isDate(body.dueDate)) {
+        return {error: 'dueDate must be a date as YYYY-MM-DD'}
+    }
+    if (note.length > 500) {
+        return {error: 'note is limited to 500 characters'}
+    }
+    return {obligation: {client: client, tax: body.tax, dueDate: body.dueDate, note: note}}
+}
+
+function isDate (value) {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return false
+    }
+    const date = new Date(value + 'T00:00:00Z')
+    return !isNaN(date) && date.toISOString().slice(0, 10) === value
+}
+
 function unavailable (res, err) {
     console.log('redis error: ' + err.message)
     res.status(503).json({message: 'storage is unavailable, please try again later'})
@@ -44,12 +73,13 @@ class TodoController {
 
     async create (req, res) {
         const username = req.user.username
+        const {obligation, error} = readObligation(req.body || {})
+        if (error) {
+            return res.status(400).json({message: error})
+        }
         try {
             const id = await this._incr(nextIdKey(username))
-            const todo = {
-                content: req.body.content,
-                id: id
-            }
+            const todo = Object.assign({id: id}, obligation)
             await this._hset(itemsKey(username), id, JSON.stringify(todo))
             this._logOperation(OPERATION_CREATE, username, id)
             res.json(todo)
