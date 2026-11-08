@@ -32,22 +32,24 @@ cluster:
 
 images:
 	@for service in $(SERVICES); do \
-		minikube --profile $(PROFILE) image build --tag plazofiscal/$$service:$(TAG) app/$$service || exit 1; \
+		docker build --tag plazofiscal/$$service:$(TAG) app/$$service || exit 1; \
 	done
+	k3d image import --cluster $(CLUSTER) $(foreach service,$(SERVICES),plazofiscal/$(service):$(TAG))
 
 deploy:
-	KUBE_CONTEXT=$(PROFILE) bash deploy/up.sh
+	KUBE_CONTEXT=$(CONTEXT) bash deploy/up.sh
 
 status:
-	kubectl --context $(PROFILE) get nodes
-	kubectl --context $(PROFILE) get pods --all-namespaces
-	kubectl --context $(PROFILE) top nodes
+	kubectl --context $(CONTEXT) get nodes
+	kubectl --context $(CONTEXT) get pods --all-namespaces
+	kubectl --context $(CONTEXT) top nodes
 
 rollout:
 	@test -n "$(SERVICE)" || { echo 'Set SERVICE, for example SERVICE=todos-api'; exit 2; }
-	minikube --profile $(PROFILE) image build --tag plazofiscal/$(SERVICE):$(TAG) app/$(SERVICE)
-	kubectl --context $(PROFILE) --namespace plazofiscal set image deployment/$(SERVICE) $(SERVICE)=plazofiscal/$(SERVICE):$(TAG)
-	kubectl --context $(PROFILE) --namespace plazofiscal rollout status deployment/$(SERVICE) --timeout=10m
+	docker build --tag plazofiscal/$(SERVICE):$(TAG) app/$(SERVICE)
+	k3d image import --cluster $(CLUSTER) plazofiscal/$(SERVICE):$(TAG)
+	kubectl --context $(CONTEXT) --namespace plazofiscal set image deployment/$(SERVICE) $(SERVICE)=plazofiscal/$(SERVICE):$(TAG)
+	kubectl --context $(CONTEXT) --namespace plazofiscal rollout status deployment/$(SERVICE) --timeout=10m
 
 stop:
 	k3d cluster stop $(CLUSTER)
