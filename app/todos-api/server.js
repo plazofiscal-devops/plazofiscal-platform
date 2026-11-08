@@ -34,6 +34,15 @@ if (!jwtSecret) {
 }
 
 const app = express()
+const metrics = require('./metrics')
+metrics.watchObligations(redisClient)
+app.use(metrics.timeRequests)
+
+// Prometheus reads this from inside the cluster. It carries counts only, with no client data.
+app.get('/metrics', async function (req, res) {
+  res.set('Content-Type', metrics.register.contentType)
+  res.end(await metrics.register.metrics())
+})
 
 // Registered before the jwt middleware below so it never requires a token.
 // This is the real health endpoint used by the Docker HEALTHCHECK.
