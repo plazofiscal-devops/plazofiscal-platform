@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sin acceso | PlazoFiscal</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f4f6f8; color: #1f2d3d; font-family: system-ui, sans-serif; }
+    main { max-width: 30rem; margin: 1rem; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0, 0, 0, .08); }
+    h1 { margin-top: 0; font-size: 1.4rem; }
+    p { line-height: 1.5; }
+    .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
+    a { padding: .6rem 1rem; border-radius: 6px; text-decoration: none; }
+    #sign-out { background: #0b5394; color: #fff; }
+    #app { border: 1px solid #0b5394; color: #0b5394; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Sin acceso a esta herramienta</h1>
+    <p>Tu usuario no pertenece al grupo <strong>plataforma</strong>, que es el que abre las herramientas de operación de PlazoFiscal.</p>
+    <p>Para entrar con otro usuario, cierra sesión. Keycloak te pedirá confirmar y luego volverás a esta página para iniciar sesión de nuevo.</p>
+    <div class="actions">
+      <a id="sign-out" href="/oauth2/sign_out">Cerrar sesión y entrar con otro usuario</a>
+      <a id="app" href="http://app.plazofiscal.localhost:8000/">Ir a la aplicación</a>
+    </div>
+  </main>
+  <script>
+    // Ends the session of the entry point, then the Keycloak session, and returns to the address that was refused.
+    var logout = 'http://auth.plazofiscal.localhost:8000/realms/plazofiscal/protocol/openid-connect/logout'
+      + '?client_id=oauth2-proxy&post_logout_redirect_uri=' + encodeURIComponent(window.location.href);
+    document.getElementById('sign-out').href = '/oauth2/sign_out?rd=' + encodeURIComponent(logout);
+  </script>
+</body>
+</html>

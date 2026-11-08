@@ -92,7 +92,7 @@
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "+"
+        "post.logout.redirect.uris": "http://app.plazofiscal.localhost:8000/*##http://grafana.plazofiscal.localhost:8000/*##http://kibana.plazofiscal.localhost:8000/*##http://kubecost.plazofiscal.localhost:8000/*##http://jaeger.plazofiscal.localhost:8000/*##http://alertmanager.plazofiscal.localhost:8000/*##http://prometheus.plazofiscal.localhost:8000/*"
       },
       "defaultClientScopes": [
         "profile",
@@ -127,7 +127,7 @@
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "+"
+        "post.logout.redirect.uris": "http://grafana.plazofiscal.localhost:8000/*"
       },
       "defaultClientScopes": [
         "profile",

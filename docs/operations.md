@@ -135,7 +135,7 @@ The repository holds no secret. The deployment generates the signing key of the 
 | Pods in `Pending` | The cluster has no memory left | Run `make status`, then reduce replicas or stop a tool |
 | A name under `plazofiscal.localhost` does not open | The cluster was created before the entry point existed, so k3d maps no port 8000 | Run `k3d cluster edit plazofiscal --port-add 8000:30800@loadbalancer`, or `make down` and `make up` |
 | Keycloak asks for a code the app does not show | The authenticator was enrolled on another phone | Reset the OTP credential of the user in the Keycloak console |
-| The tools answer 403 after Keycloak | The user is not in the group `plataforma` | Sign in as `operador`, or add the user to the group in the console |
+| A tool shows Sin acceso a esta herramienta | The user is not in the group `plataforma` | Press Cerrar sesión y entrar con otro usuario and sign in as `operador`, or add the user to the group in the console |
 | Many pods restart at once and the forwards stop | The machine ran short of memory and a node restarted its components | Close heavy programs, wait until `make status` shows every pod ready, and run `make dashboards` again |
 | Fluent Bit restarts with `Too many open files` | The machine reached its inotify limit | The configuration polls files, so this only appears with a changed configuration. Raise `fs.inotify.max_user_instances` on the machine |
 | Kibana restarts with `JavaScript heap out of memory` | Its Node heap is too small for the version | Keep `--max-old-space-size` at 1024 or more in `deploy/platform/elastic/kibana.yaml` |
