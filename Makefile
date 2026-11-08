@@ -17,7 +17,7 @@ help:
 		'make up                              Create the cluster, install the platform, build the images and deploy' \
 		'make status                          Show nodes, pods and resource use' \
 		'make forward                         Open the application on http://localhost:8080' \
-		'make dashboards                      Open Grafana, Kubecost, Alertmanager and Prometheus on localhost' \
+		'make dashboards                      Open Grafana, Kubecost, Alertmanager, Prometheus, Kibana and Jaeger' \
 		'make load RATE=15 DURATION=3m        Run accountant traffic inside the cluster' \
 		'make check-policies                  Prove every allowed and denied network path' \
 		'make rollout SERVICE=todos-api TAG=v2  Build one image and start a rolling update' \
