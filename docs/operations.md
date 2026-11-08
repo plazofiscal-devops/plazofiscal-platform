@@ -7,7 +7,7 @@ This document explains what the platform needs, how to run it day to day, and wh
 1. Requirements
 2. Daily commands
 3. Releasing a service
-4. Dashboards and alerts
+4. Dashboards, logs, traces and alerts
 5. Secrets
 6. Troubleshooting
 
@@ -59,7 +59,7 @@ The load prints its summary at the end, and `http_req_failed` must read 0.00 per
 kubectl --context k3d-plazofiscal --namespace plazofiscal rollout undo deployment/todos-api
 ```
 
-## 4. Dashboards and alerts
+## 4. Dashboards, logs, traces and alerts
 
 `make dashboards` forwards each tool to the machine.
 
@@ -69,8 +69,14 @@ kubectl --context k3d-plazofiscal --namespace plazofiscal rollout undo deploymen
 | Kubecost | `http://localhost:9090` |
 | Alertmanager | `http://localhost:9093` |
 | Prometheus | `http://localhost:9091` |
+| Kibana | `http://localhost:5601` |
+| Jaeger | `http://localhost:16686` |
 
-Grafana asks for the user `admin` with the password `admin`. It answers only on the machine through the port forward, and sign-in through Keycloak replaces this account.
+Grafana and Kibana ask for the user `admin` with the password `admin`. They answer only on the machine through the port forward, and sign-in through Keycloak replaces this account. When a pod of a tool is replaced, its forward stops, so run `make dashboards` again.
+
+Kibana opens on the data view PlazoFiscal logs, with one line per log entry and the service in `service.name`. The data view Kubernetes events lists events with their reason, type and object. Logs and events are kept for 3 days.
+
+To follow one request, sign in on the application and create an obligation, then open Jaeger, choose the service `log-message-processor` and open the latest trace. It shows the frontend, the obligations service and the activity processor in order. In Kibana, search for the trace id of that trace to find the line the processor logged for it. Signing in shows a trace through the frontend, the sign-in service and the users service.
 
 Alerts reach Slack through an incoming webhook of the channel. Create the webhook in Slack, save its address in a file that only the current user can read, and run the installation again.
 
@@ -94,13 +100,16 @@ Kubecost needs about an hour after installation before its interface shows the f
 
 ## 5. Secrets
 
-The repository holds no secret. The deployment generates the signing key of the application once, and it lives only in the cluster. The Grafana account `admin` with password `admin` is a known local default, reachable only through the port forward. The Slack webhook address lives in a file of the machine outside the repository and in a Secret of the cluster.
+The repository holds no secret. The deployment generates the signing key of the application once, and it lives only in the cluster. The Grafana and Kibana accounts `admin` with password `admin` are a known local default, reachable only through the port forward. The Slack webhook address lives in a file of the machine outside the repository and in a Secret of the cluster.
 
 ## 6. Troubleshooting
 
 | Symptom | Cause | Response |
 |---|---|---|
 | Pods in `Pending` | The cluster has no memory left | Run `make status`, then reduce replicas or stop a tool |
+| Many pods restart at once and the forwards stop | The machine ran short of memory and a node restarted its components | Close heavy programs, wait until `make status` shows every pod ready, and run `make dashboards` again |
+| Fluent Bit restarts with `Too many open files` | The machine reached its inotify limit | The configuration polls files, so this only appears with a changed configuration. Raise `fs.inotify.max_user_instances` on the machine |
+| Kibana restarts with `JavaScript heap out of memory` | Its Node heap is too small for the version | Keep `--max-old-space-size` at 1024 or more in `deploy/platform/elastic/kibana.yaml` |
 | Pods in `OOMKilled` | A tool exceeded its limit | Raise its limit inside the budget of the architecture document |
 | The machine freezes | Too much memory assigned | Run `make stop`, close programs, and try again with a lower `MEMORY` |
 | Traffic between services is blocked | A network policy has no matching path | Run `make check-policies` to see which path fails, then read `deploy/policies/network-policies.yaml` and add the path |

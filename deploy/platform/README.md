@@ -8,7 +8,7 @@ Each component installs from a chart or operator pinned to an exact version, wit
 | KEDA 2.21.0 | `keda` | Scaling by date and load |
 | kube-prometheus-stack 93.1.0 | `observability` | Prometheus, Alertmanager, Grafana and exporters |
 | Kubecost 2.8.7 | `observability` | Cost by namespace and service, from the same Prometheus |
-| ECK with Elasticsearch, Logstash and Kibana | `observability` | Logs |
-| Jaeger | `observability` | Traces |
-| Kubernetes event exporter | `observability` | Events |
+| ECK operator 3.5.0 | `elastic-system` | Elasticsearch, Logstash and Kibana 9.5.6 in `observability`, from `elastic/` |
+| Fluent Bit 5.1.3 | `observability` | Container logs from each node, and Kubernetes events from one replica |
+| Jaeger 2.22.0 | `observability` | Traces, kept in memory |
 | Keycloak and oauth2-proxy | `identity` | Sign-in with a second factor |

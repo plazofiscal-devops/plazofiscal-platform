@@ -46,17 +46,19 @@ Memory limits the design more than any other factor. The reference machine has 8
 | Component | Memory | Origin |
 |---|---|---|
 | Kubernetes on three nodes and metrics server | 0.8 GiB | Measured |
-| Elasticsearch | 1.5 GiB | Estimate |
-| Logstash and Kibana | 1.3 GiB | Estimate |
+| Elasticsearch | 1.0 GiB | Measured |
+| Logstash and Kibana | 1.6 GiB | Measured, Kibana 1.0 and Logstash 0.6 |
 | Prometheus, Alertmanager, Grafana and exporters | 1.0 GiB | Measured |
-| Kubecost | 0.5 GiB | Measured |
-| Jaeger and event exporter | 0.2 GiB | Estimate |
+| Kubecost | 0.75 GiB | Measured, growing with its cost history |
+| Jaeger and Fluent Bit | 0.05 GiB | Measured |
 | Keycloak and oauth2-proxy | 0.8 GiB | Estimate |
 | Traefik and KEDA | 0.3 GiB | KEDA measured at 0.2 GiB with its metrics on |
 | Application at maximum replicas | 1.8 GiB | Measured |
-| **Total** | **8.2 GiB** | |
+| **Total** | **8.1 GiB** | |
 
-Measured rows come from `kubectl top` on the reference machine with the application running. Grafana alone takes about 0.45 GiB and Prometheus about 0.4 GiB, which grows with the data it keeps. With only the application running, the three nodes use about 2.0 GiB. The users service takes 1.0 GiB of that, because its Java runtime reserves memory when it starts, and the development server of the frontend takes 0.15 GiB.
+Measured rows come from `kubectl top` on the reference machine with the application running. Grafana takes about 0.4 GiB and Prometheus about 0.5 GiB, which grows with the data it keeps. Kibana 9.5 needs a Node heap of 1 GiB, because it runs its migrations again on every start and fails with less.
+
+With everything but sign-in running, the nodes use about 6.5 GiB of their 10 GiB, so the cluster has room. The machine is the tighter limit. A desktop with a browser and other programs leaves under 2 GiB free, the machine then swaps, and under that pressure the server node once restarted its components. The platform recovered by itself within a few minutes. Close heavy programs before a demonstration, and stop the cluster when it is not in use. With only the application running, the three nodes use about 2.0 GiB. The users service takes 1.0 GiB of that, because its Java runtime reserves memory when it starts, and the development server of the frontend takes 0.15 GiB.
 
 The cluster runs three nodes, so a rolling update, a disruption budget and the spread of replicas have a real effect. More nodes would repeat the per node overhead with no gain for the demonstration. A production service would run its nodes across zones, on separate machines.
 
@@ -122,7 +124,7 @@ The calendar raises capacity before a known peak, and CPU covers what the calend
 
 Both triggers were proven on the three node cluster. Under accountant traffic at about 70 requests per second, the frontend and the obligations service went from 2 to 4 replicas within a minute and the sign-in service within three minutes, with no failed request, and all three returned to 2 about seven minutes after the traffic stopped. A calendar window moved to the next minutes raised the obligations service from 2 to 3 replicas as it opened and returned it to 2 five minutes after it closed. At 92 requests per second, with every scaled service at 4 replicas, no pod waited for room, the nodes used about 2.8 GiB together, and the memory requested by the pods stayed between 13 and 30 percent of each node.
 
-The HPA measures CPU against the CPU each pod requests, so a request below the real idle use keeps a service at its maximum. The sign-in service spends some CPU at rest retrying traces toward a collector, so its request is 100 millicores, close to the 40 millicores per pod measured under load plus that background.
+The HPA measures CPU against the CPU each pod requests, so a request below the real idle use keeps a service at its maximum. The sign-in service requests 50 millicores, close to the 40 millicores per pod measured under load, and uses about 3 millicores at rest.
 
 The rules are KEDA ScaledObjects, one short declarative object per service. A scheduled job that edited the HPA would need permissions to change cluster objects and would duplicate the logic of the HPA. The Deployments of the scaled services declare no replica count, so applying them never fights the HPA.
 
@@ -133,9 +135,9 @@ The `observability` namespace holds the tools that watch the platform. The busin
 | Signal | Source | Storage |
 |---|---|---|
 | Metrics | Prometheus | Prometheus |
-| Logs | Logstash | Elasticsearch |
-| Traces | Services through Zipkin format, received by Jaeger | Elasticsearch |
-| Events | Kubernetes event exporter | Elasticsearch |
+| Logs | Fluent Bit on each node, processed by Logstash | Elasticsearch, read in Kibana |
+| Traces | Services in Zipkin format, received by Jaeger | Jaeger, in memory |
+| Events | Fluent Bit reading the Kubernetes API, processed by Logstash | Elasticsearch, read in Kibana |
 | Alerts | Prometheus rules | Alertmanager, which posts to Slack |
 
 ### Metrics
@@ -172,6 +174,20 @@ Alertmanager groups alerts by name and namespace and posts each group to a Slack
 
 The path was proven end to end. With the users service scaled to zero, the rule went pending after about 40 seconds, fired one minute later and reached Slack within the next 40 seconds. After the restore, the resolved message reached Slack about five minutes later, at the next group interval.
 
+### Logs and events
+
+Elasticsearch, Logstash and Kibana 9.5 run through the ECK operator, which manages their certificates, users and upgrades. Fluent Bit runs on each node and tails the container logs of `plazofiscal`, adds the pod, namespace and labels of each line, and sends batches to Logstash. A second Fluent Bit replica reads Kubernetes events from the API server and sends them the same way. Logstash names the service of each line from its `app` label, reads the log level, keeps the JSON fields of a service under `app`, and drops the readiness and liveness probes, which hit every pod every few seconds and say nothing about accountants. Logs land in the data stream `logs-plazofiscal-default` and events in `logs-kubernetes.events-default`, and Kibana opens both through two data views.
+
+Elasticsearch runs one node on an agent, with a 512 MiB heap and a 5 GiB volume. Each index has no replica, since there is no second node to hold it, and a lifecycle policy rolls indices daily and deletes them after 3 days. The nodes of k3d cannot raise the kernel limit on memory maps, so Elasticsearch reads its files without them. Fluent Bit polls log files, because the nodes share the inotify limit of the machine, which other programs on a desktop exhaust.
+
+Fluent Bit replaces two tools, a log shipper and a dedicated event exporter. The usual event exporter for Kubernetes has had no release since early 2024, and Fluent Bit covers both signals at about 20 MiB per pod.
+
+### Traces
+
+Every service reports spans in Zipkin format. The frontend reports the browser side of each call through its development server, the sign-in, obligations and users services report their HTTP calls, and the activity processor continues the trace of the obligation that produced its message, since the obligations service puts the trace id in the message it publishes to Redis. Jaeger 2.22 receives Zipkin on port 9411 and OTLP on 4317 and 4318, and keeps the last 20,000 traces in memory. A restart of Jaeger clears them, which suits a demonstration and adds no load to Elasticsearch.
+
+One request can be followed across the platform. Signing in gives one trace through the frontend, the sign-in service and the users service. Creating an obligation gives one trace through the frontend, the obligations service and the activity processor, and the line the processor logs carries the same trace id, so the trace in Jaeger leads to the logs in Kibana.
+
 ### Costs
 
 Kubecost reads the same Prometheus, so the cluster runs one metrics server. Version 2.8 is the last line of Kubecost built on Prometheus. Version 3 replaced Prometheus with its own agent and a ClickHouse database, its chart requests 3 GiB for the aggregator alone, and its authors recommend 8 GB for it, which does not fit a node of 3.5 GiB. Kubecost 2.8 runs as one pod with its cost model, aggregator and interface, at about 0.5 GiB, and its forecasting, network costs and bundled Grafana are off.
@@ -191,13 +207,17 @@ Keycloak requires a password and a one-time code. Grafana connects to it directl
 | Calendar rules through KEDA | A scheduled job that edits the HPA | One declarative object, with no extra permissions |
 | Kubecost 2.8 on the platform Prometheus | Kubecost 3, or OpenCost | Kubecost 3 needs more memory than a node has, and OpenCost lacks the Kubecost interface |
 | Alerts to Slack | A mail catcher inside the cluster, or Discord | Alerts reach a channel people read on their phones, and Alertmanager supports Slack natively |
+| ECK for Elasticsearch, Logstash and Kibana | The archived Elastic Helm charts, or plain manifests | The operator handles certificates, users and upgrades, and its charts are current |
+| Fluent Bit for logs and events | Filebeat with a separate event exporter | One small tool covers both signals, and the usual event exporter is unmaintained |
+| Logstash in the log path | Fluent Bit straight to Elasticsearch | Parsing and filtering live in one place, at about 0.75 GiB |
+| Jaeger with memory storage | Jaeger on Elasticsearch | Traces of a demonstration need no history, and Elasticsearch keeps its memory for logs |
 | One public repository | Several repositories | One change can touch code, manifests and documents |
 
 ## 11. Assumptions and pending confirmations
 
 | Item | Who confirms | Effect if it fails |
 |---|---|---|
-| The stack fits in 10 GiB | First full deployment | Reduce retention, then remove Logstash from the path and keep Elasticsearch and Kibana |
+| The machine keeps about 3 GiB free beside the cluster during a demonstration | Each demonstration | Close programs. If that is not enough, remove Logstash from the path and keep Elasticsearch and Kibana |
 | Kubecost 2.8 keeps working on Kubernetes 1.36 | Each upgrade of K3s | Move to OpenCost, its open source base, on the same Prometheus |
 | Kibana can skip its login behind `oauth2-proxy` | Installation | Keep a second login, or read logs in Grafana |
 
