@@ -37,6 +37,16 @@ app.get('/health', function (req, res) {
   res.status(200).json({ status: 'UP' })
 })
 
+// Readiness depends on Redis, since every request reads or writes there.
+app.get('/ready', function (req, res) {
+  redisClient.ping(function (err) {
+    if (err) {
+      return res.status(503).json({ status: 'DOWN' })
+    }
+    res.status(200).json({ status: 'UP' })
+  })
+})
+
 // tracing
 const ctxImpl = new CLSContext('zipkin');
 const recorder = new  BatchRecorder({
