@@ -23,7 +23,8 @@ spec:
     - pipeline.id: main
       config.string: |
         input {
-          http { port => 8080 codec => json }
+          # Request fields such as host and user agent belong to Fluent Bit, so they stay out of the events.
+          http { port => 8080 codec => json ecs_compatibility => disabled }
         }
         filter {
           if [source] == "kubernetes-events" {
@@ -48,9 +49,9 @@ spec:
             }
             mutate { uppercase => ["[log][level]"] gsub => ["[log][level]", "^WARNING$", "WARN"] }
             # Readiness and liveness probes hit every pod every few seconds and say nothing about accountants.
-            if [message] =~ /GET \/(health|ready|healthz)\b/ { drop {} }
+            if [message] =~ /GET \/(health|ready|healthz|version)\b/ or [app][user_agent] =~ /^kube-probe/ { drop {} }
           }
-          mutate { remove_field => ["[event][original]", "[url]", "[http]", "[user_agent]", "[host]"] }
+          mutate { remove_field => ["[event][original]", "[headers]", "[host]"] }
         }
         output {
           elasticsearch {

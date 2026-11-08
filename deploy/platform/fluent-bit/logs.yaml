@@ -22,6 +22,8 @@ config:
         Name kubernetes
         Match kube.*
         Merge_Log On
+        # JSON logs of the services go under app, so their fields never collide with the record fields.
+        Merge_Log_Key app
         Keep_Log On
         Labels On
         Annotations Off
