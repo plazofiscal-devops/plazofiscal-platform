@@ -23,7 +23,7 @@ export default {
      */
     'message': {
       type: String,
-      default: 'Loading...'
+      default: 'Cargando...'
     }
   },
   data () {
@@ -42,10 +42,10 @@ $duration: 1.4s;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: absolute;
+  position: fixed;
   top: 0; bottom: 0; left: 0; right: 0;
   z-index: 999;
-  background-color: rgba(255,255,255, 0.7);
+  background-color: rgba(18, 18, 18, 0.7);
 }
 .spinner-content {
   
@@ -53,7 +53,8 @@ $duration: 1.4s;
 .spinner-message {
   padding: 1px 4px;
   border-radius: 8px;
-  background-color: rgba(255,255,255, 0.85);
+  background-color: #262626;
+  color: #f0f0f0;
 }
 .spinner {
   animation: rotator $duration linear infinite;

@@ -145,7 +145,8 @@ export default {
     var userData = decode(auth.accessToken)
 
     const user = store.state.user
-    user.name = userData.name
+    user.name = [userData.firstname, userData.lastname].join(' ').trim() || userData.username
+    user.firstName = userData.firstname || userData.username
     user.role = userData.role
 
     store.commit('UPDATE_AUTH', auth)
