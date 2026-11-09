@@ -78,10 +78,13 @@ The dashboard shows these indicators next to the technical signals, so that a ma
 
 | Indicator | Question it answers |
 |---|---|
-| Obligations closed per hour | Is work advancing? |
-| Failed sign-ins | Is someone having trouble, or trying to get in? |
-| Cost per day and per service | What does the platform cost to run? |
-| Days until the next filing window | Should a release wait? |
+| Obligations registered in the last 24 hours, by tax | Are firms loading their deadlines, and for which taxes? |
+| Obligations overdue and due in the next 7 days | How many deadlines are at risk right now? |
+| Sign-ins by result | Is someone having trouble, or trying to get in? |
+| Filing window open or closed | Is this a peak, and should a release wait? |
+| Replicas against the maximum | Is capacity following the calendar and the load? |
+
+Cost per namespace and per service lives in Kubecost, which runs for cost reviews.
 
 ## 9. Risks
 
@@ -91,7 +94,7 @@ The dashboard shows these indicators next to the technical signals, so that a ma
 | Load exceeds the cluster | Slow responses | Maximum replicas protect the rest of the platform, and an alert warns the operator |
 | Unauthorized access | Exposure of client data | Sign-in with a second factor, and network isolation between services |
 | Redis loses its pod | Requests wait about four seconds, and a request in flight can fail | Data stays on the persistent volume, the pod returns on its own, and the obligations service holds commands until Redis is back |
-| Cost grows unnoticed | Margin erodes | Kubecost shows cost per service, and an alert warns about idle capacity |
+| Cost grows unnoticed | Margin erodes | Kubecost shows cost per namespace and service in each cost review, and the capacity table of the architecture records the measured memory of every component |
 
 ## 10. Assumptions
 
